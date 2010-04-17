@@ -8,7 +8,7 @@
 -module(ebot_web).
 -author("matteo.redaelli@libero.it").
 -define(SERVER, ?MODULE).
-
+-define(TIMEOUT, 5000).
 -behaviour(gen_server).
 
 %% API
@@ -35,7 +35,7 @@
 %% Description: Starts the server
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
 info() ->
     gen_server:call(?MODULE, {info}).
 statistics() ->

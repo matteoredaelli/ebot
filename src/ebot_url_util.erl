@@ -86,8 +86,11 @@ parse_url(URL) ->
 	{error, Result} ->
 	    {error, Result};
 	{Protocol,_,Root,Port,Path,Query} -> 
+	    %% TODO: should check protocol/port and not only port
 	    case Port of
 		80 ->
+		    P = "";
+		443 ->
 		    P = "";
 		_Else ->
 		    P = ":" ++ integer_to_list(Port)
