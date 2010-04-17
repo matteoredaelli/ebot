@@ -23,16 +23,18 @@
 %%--------------------------------------------------------------------
 	      
 convert_to_absolute_url( Url, ParentUrl) ->
-    case re:run(Url, "^http") of
+    %% sometimes I have found some spaces at the end ...
+    NewUrl = string:strip(Url,  both, $ ),
+    case re:run(NewUrl, "^http") of
 	{match, _L} ->
-	    Url;
+	    NewUrl;
 	nomatch ->
 	    {Domain,Folder,_File,_Query} = parse_url(ParentUrl),
-	    case re:run(Url, "^/") of
+	    case re:run(NewUrl, "^/") of
 		{match, _L} ->
-		    Domain ++ Url;
+		    Domain ++ NewUrl;
 		nomatch ->
-		    Domain ++ normalize_path(Folder ++ Url)
+		    Domain ++ normalize_path(Folder ++ NewUrl)
 	    end
     end.
 
