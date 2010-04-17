@@ -1,0 +1,8 @@
+URL="http://www.redaelli.org".
+ebot_web:fetch_url_head(URL).
+ebot_web:fetch_url_get(URL).
+{ok, {_Status, _Headers, Body}} = ebot_web:fetch_url_get(URL).
+ebot_html_util:get_links(Body, URL).
+ebot_html:get_links(Body, URL).
+ebot_web:fetch_url_links(URL).
+
