@@ -83,15 +83,16 @@ update_url(_Db, _Url, _) ->
 is_obsolete_url(Db, Url, Days) ->
     case Doc = open_doc(Db, Url) of
 	not_found ->
-	    Reply = not_found;
+	    Reply = {error, not_found};
 	Doc ->
 	    Now = calendar:local_time(),
-	    Date1 = httpd_util:convert_request_date(couchbeam_doc:get_value(<<"date">>, Doc)),
+	    BinDate = couchbeam_doc:get_value(<<"date">>, Doc),
+	    Date1 = httpd_util:convert_request_date(binary_to_list(BinDate)),
 	    {Diff, _} = calendar:time_difference(Date1, Now),
 	    if Diff > Days ->
-		    Reply = obsolete;
+		    Reply = {ok, true};
 	       true ->
-		    Reply = ok
+		    Reply = {ok, false}
 	    end % if
     end, % case
     Reply.

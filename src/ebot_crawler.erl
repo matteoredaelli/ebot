@@ -13,7 +13,7 @@
 
 %% API
 -export([
-	 add_todo_url_if_not_visited/1,
+	 add_todo_url/1,
 	 add_visited_url/1,
 	 crawl/0,
 	 get_todo_url/0,
@@ -50,8 +50,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-add_todo_url_if_not_visited(Url) ->
-    gen_server:cast(?MODULE, {add_todo_url_if_not_visited, Url}).
+add_todo_url(Url) ->
+    gen_server:cast(?MODULE, {add_todo_url, Url}).
 add_visited_url(Url) ->
     gen_server:cast(?MODULE, {add_visited_url, Url}).
 get_todo_url() ->
@@ -143,15 +143,14 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({add_todo_url_if_not_visited, Url}, State) ->
+handle_cast({add_todo_url, Url}, State) ->
     Queue =  State#state.todo_urls,
-    case queue:member(Url, State#state.visited_urls) of
+    case queue:member(Url, Queue) of
 	true ->
-	    NewQueue = Queue;
+	    NewState = State;
 	false ->
-	    NewQueue = add_url_if_not_member(Url, Queue)
+	    NewState = State#state{todo_urls = queue:in(Url, Queue)}
     end,
-    NewState = State#state{todo_urls = NewQueue},
     {noreply, NewState};
 
 handle_cast({add_visited_url, Url}, State) ->
@@ -218,14 +217,6 @@ code_change(_OldVsn, State, _Extra) ->
 % get_config(Option, State) ->
 %    proplists:get_value(Option, State#state.config).
 
-add_url_if_not_member(Url, Queue) ->
-    case queue:member(Url, Queue) of
-	true  ->
-	    Queue;
-	false ->
-	    queue:in(Url, Queue)
-    end.
-
 analyze_url_if_needed(Url) ->
     case is_visited_url(Url) of
 	true ->
@@ -251,9 +242,31 @@ analyze_url_links_if_html_page(Url) ->
 analyze_url_links(Url) ->
     case ebot_web:fetch_url_links(Url) of
 	{ok, Links} ->
+	    %% removing already visited urls
+	    NotVisitedLinks = lists:filter(
+				fun(U) -> not is_visited_url(U) end,
+				Links),
+	    %% retrive Url from DB
 	    lists:foreach(
-	      fun add_todo_url_if_not_visited/1,
-	      Links),
+	      fun(U) ->
+		      %% creating the url in the database if it doen't exists
+		      ebot_db:open_or_create_url(U),
+		      case ebot_db:is_obsolete_url(U) of
+			  {error, _Reason} ->
+			      %% TODO
+			      ko;
+			  {ok, true} ->
+			      % the url is obsolete
+			      % it will be saved in the todo queue for processing
+			      add_todo_url(U);
+			  {ok, false} ->
+			      % the url is not obsolete
+			      % it will not be saved in the todo queue
+			      % it will be saved in the visited queue
+			      add_visited_url(U)
+		      end
+	      end,
+	      NotVisitedLinks),
 	    Result =  {ok, done};
 	Error ->
 	    Result = Error

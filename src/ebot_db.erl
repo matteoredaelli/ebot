@@ -122,6 +122,7 @@ handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
 
+%% TODO
 %% TODO: no of days should be a parameter
 handle_call({is_obsolete_url, Url}, _From, State) ->
     Reply = ebot_db_util:is_obsolete_url(State#state.db, Url, 1),
