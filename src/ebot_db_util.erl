@@ -11,10 +11,11 @@
 -export([
 	 create_url/2,
 	 is_html_doc/1,
-	 is_obsolete_url/3,
 	 open_doc/2,
 	 open_or_create_url/2,
-	 update_url/3
+	 update_url/3,
+	 update_url_body/2,
+	 url_status/3
 	]).
 
 %%====================================================================
@@ -31,11 +32,11 @@ create_url(Db, Url) ->
 	    {<<"http-returncode">>,0},
 	    {<<"content-length">>, 0},
 	    {<<"content-type">>, <<"">>},
-	    {<<"date">>,<<"Tue, 01 Jan 1980 00:00:00 GMT">>},
+	    {<<"date">>,<<"">>},
 	    {<<"keep-alive">>, <<"">>},
 	    {<<"last-modified">>, <<"">>},
 	    {<<"server">>, <<"">>},
-	    {<<"visited">>, 0},
+	    {<<"ebot-body-visited">>, <<"">>},
 	    {<<"x-powered-by">>,<<"">>}
 	   ]},
     create_doc(Db, Doc, <<"url">>).
@@ -80,22 +81,9 @@ update_url(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
 update_url(_Db, _Url, _) ->
     error.
 
-is_obsolete_url(Db, Url, Days) ->
-    case Doc = open_doc(Db, Url) of
-	not_found ->
-	    Reply = {error, not_found};
-	Doc ->
-	    Now = calendar:local_time(),
-	    BinDate = couchbeam_doc:get_value(<<"date">>, Doc),
-	    Date1 = httpd_util:convert_request_date(binary_to_list(BinDate)),
-	    {Diff, _} = calendar:time_difference(Date1, Now),
-	    if Diff > Days ->
-		    Reply = {ok, true};
-	       true ->
-		    Reply = {ok, false}
-	    end % if
-    end, % case
-    Reply.
+update_url_body(Db, Url) ->
+    update_url_timestamp_by_key(Db, Url, <<"ebot-body-visited">>).
+
 
 is_html_doc(Doc) ->
     Contenttype = couchbeam_doc:get_value(<<"content-type">>, Doc),
@@ -105,6 +93,10 @@ is_html_doc(Doc) ->
 	nomatch ->
 	    false
     end.
+
+url_status(Db, Url, Options) ->
+    Doc = open_doc(Db, Url),
+    url_doc_status(Doc, Options).
 
 %%====================================================================
 %% Internal functions
@@ -122,6 +114,35 @@ create_doc(Db, Doc, Type) ->
 	       Defaults),
     save_doc(Db, NewDoc).
 
+doc_date_field_status(Doc, Field, Days) ->
+    case BinDate = couchbeam_doc:get_value(Field, Doc) of
+	<<"">> ->
+	    new;
+	BinDate ->
+	    Date = httpd_util:convert_request_date(binary_to_list(BinDate)),
+	    date_field_status(Date, Days)
+    end.
+
+date_field_status(Date, Days) ->
+    Now = calendar:local_time(),
+    {Diff, _} = calendar:time_difference(Date, Now),
+    case Diff > Days of
+	true ->
+	    obsolete;
+	false ->
+	    updated
+    end.
+
+ebot_header_keys()->
+    [
+     <<"content-length">>,
+     <<"content-type">>,
+     <<"date">>,
+     <<"last-modified">>,
+     <<"server">>,
+     <<"x-powered-by">>
+    ].
+
 save_doc(Db, Doc) ->
     couchbeam_db:save_doc(Db, Doc).
 
@@ -137,12 +158,33 @@ removing_db_stardard_keys(Keys) ->
       end,
       Keys).
 
-ebot_header_keys()->
-    [
-     <<"content-length">>,
-     <<"content-type">>,
-     <<"date">>,
-     <<"last-modified">>,
-     <<"server">>,
-     <<"x-powered-by">>
-    ].
+update_url_timestamp_by_key(Db, Url, Key) ->
+    Doc = open_doc(Db, Url),
+    Value = list_to_binary(httpd_util:rfc1123_date()),
+    update_doc_by_key_value( Db, Doc, Key, Value).
+
+update_doc_by_key_value(Db, Doc, Key, Value) ->
+    NewDoc = couchbeam_doc:set_value(Key, Value, Doc),
+    save_doc(Db, NewDoc).
+
+url_doc_header_status(Doc, Options) ->
+    Result = doc_date_field_status(Doc, <<"date">>, Options),
+    {header, Result}.
+
+url_doc_body_status(Doc, Options) ->
+    case is_html_doc(Doc) of
+	false ->
+	    {body, skipped};
+	true ->
+	    Result = doc_date_field_status(Doc, <<"ebot-body-visited">>, Options),
+	    {body, Result}
+    end.
+
+url_doc_status(not_found, _Options) ->
+    not_found;
+url_doc_status(Doc, Options) ->
+    HeaderStatus = url_doc_header_status(Doc, Options),
+    BodyStatus = url_doc_body_status(Doc, Options),
+    {ok, HeaderStatus, BodyStatus}.
+
+    

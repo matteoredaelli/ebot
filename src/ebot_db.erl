@@ -39,10 +39,11 @@
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
-	 is_obsolete_url/1,
 	 open_doc/1,
 	 open_or_create_url/1,
-	 update_url/1
+	 update_url/1,
+	 update_url_body/1,
+	 url_status/1
 	]).
 
 %% gen_server callbacks
@@ -69,8 +70,8 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 info() ->
     gen_server:call(?MODULE, {info}).
-is_obsolete_url(Url) ->
-    gen_server:call(?MODULE, {is_obsolete_url, Url}).
+url_status(Url) ->
+    gen_server:call(?MODULE, {url_status, Url}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
 open_doc(ID) ->
@@ -81,6 +82,8 @@ create_url(Url) ->
     gen_server:cast(?MODULE, {create_url, Url}).
 update_url(Url) ->
     gen_server:call(?MODULE, {update_url, Url}).
+update_url_body(Url) ->
+    gen_server:call(?MODULE, {update_url_body, Url}).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -124,8 +127,8 @@ handle_call({info}, _From, State) ->
 
 %% TODO
 %% TODO: no of days should be a parameter
-handle_call({is_obsolete_url, Url}, _From, State) ->
-    Reply = ebot_db_util:is_obsolete_url(State#state.db, Url, 1),
+handle_call({url_status, Url}, _From, State) ->
+    Reply = ebot_db_util:url_status(State#state.db, Url, 1),
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
@@ -136,8 +139,14 @@ handle_call({statistics}, _From, State) ->
     {reply, Reply, NewState};
 
 handle_call({update_url, Url}, _From, State) ->
+    %% TODO: adding try & catch to avoid timeouts
+
     ReqResult = ebot_web:fetch_url_head(Url),
     Reply = ebot_db_util:update_url(State#state.db, Url, ReqResult),
+    {reply, Reply, State};
+
+handle_call({update_url_body, Url}, _From, State) ->
+    Reply = ebot_db_util:update_url_body(State#state.db, Url),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->

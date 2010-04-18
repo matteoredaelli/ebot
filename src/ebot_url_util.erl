@@ -12,6 +12,7 @@
 -export([
 	 convert_to_absolute_url/2,
 	 is_valid_url_regexps/2,
+	 normalize_url/2,
 	 parse_url/1,
 	 url_context/1
 	]).
@@ -23,18 +24,16 @@
 %%--------------------------------------------------------------------
 	      
 convert_to_absolute_url( Url, ParentUrl) ->
-    %% sometimes I have found some spaces at the end ...
-    NewUrl = string:strip(Url,  both, $ ),
-    case re:run(NewUrl, "^http") of
+    case re:run(Url, "^http") of
 	{match, _L} ->
-	    NewUrl;
+	    Url;
 	nomatch ->
 	    {Domain,Folder,_File,_Query} = parse_url(ParentUrl),
-	    case re:run(NewUrl, "^/") of
+	    case re:run(Url, "^/") of
 		{match, _L} ->
-		    Domain ++ NewUrl;
+		    Domain ++ Url;
 		nomatch ->
-		    Domain ++ normalize_path(Folder ++ NewUrl)
+		    Domain ++ normalize_path(Folder ++ Url)
 	    end
     end.
 
@@ -45,6 +44,20 @@ is_valid_url_regexps(URL, RElist) ->
       end,
       RElist).
 
+
+%% options: 
+%%   without_internal_links
+%%   without_queries
+normalize_url(Url, Options) when is_binary(Url) ->
+    normalize_url(binary_to_list(Url), Options);
+normalize_url(Url, Options) ->
+    %% sometimes I have found some spaces at the end ...
+    U1 = string:strip(Url,  both, $ ),
+    normalize_url_parsing_options(U1, Options).
+
+
+
+    
 %%====================================================================
 %% EBOT_URL specific Internal functions
 %%====================================================================
@@ -102,6 +115,26 @@ parse_url(URL) ->
 	    {Domain,Folder,File,Query}
     end.
 
+normalize_url_parsing_options(Url, [without_internal_links|Options]) ->
+				     NewUrl = url_without_internal_links(Url),
+				     normalize_url_parsing_options(NewUrl, Options);
+normalize_url_parsing_options(Url, [without_queries|Options]) ->
+				     NewUrl = url_without_queries(Url),
+				     normalize_url_parsing_options(NewUrl, Options);
+normalize_url_parsing_options(Url, [Opt|Options]) ->
+    io:format("normalize_url_parsing_options: skipping unknown option '~ts'", [atom_to_list(Opt)]),
+    normalize_url_parsing_options(Url, Options);
+normalize_url_parsing_options(Url, []) ->
+    Url.
+
 url_context(URL) ->
     {Domain,Folder,_File,_Query} = parse_url(URL),
     Domain ++ Folder.
+
+url_without_internal_links(URL) ->
+    {Scheme, Netloc, Path, Query, _Fragment} = mochiweb_util:urlsplit(URL),
+    mochiweb_util:urlunsplit({Scheme, Netloc, Path, Query,[]}).
+
+url_without_queries(URL) ->
+    {Scheme, Netloc, Path, _Query, _Fragment} = mochiweb_util:urlsplit(URL),
+    mochiweb_util:urlunsplit({Scheme, Netloc, Path, [],[]}).

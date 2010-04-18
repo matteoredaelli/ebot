@@ -16,13 +16,12 @@
 	 add_todo_url/1,
 	 add_visited_url/1,
 	 crawl/0,
+	 crawl/1,
 	 get_todo_url/0,
 	 info/0,
 	 is_visited_url/1,
 	 show_todo_urls/0,
 	 show_visited_urls/0,
-	 start_crawlers/0,
-	 stop_crawlers/0,
 	 start_link/0,
 	 statistics/0
 	]).
@@ -58,10 +57,8 @@ get_todo_url() ->
     gen_server:call(?MODULE, {get_todo_url}).
 is_visited_url(Url) ->
     gen_server:call(?MODULE, {is_visited_url, Url}).
-start_crawlers() ->
-    gen_server:cast(?MODULE, {start_crawlers}).
-stop_crawlers() ->
-    gen_server:cast(?MODULE, {stop_crawlers}).
+crawl() ->
+    gen_server:cast(?MODULE, {crawl}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_todo_urls() ->
@@ -166,20 +163,10 @@ handle_cast({add_visited_url, Url}, State) ->
     end,
     {noreply, NewState};
 
-handle_cast({start_crawlers}, State) ->
-    Crawlers = lists:map(
-		 fun(_C) -> spawn(?MODULE, crawl,[]) end,
-		 lists:seq(1,5)
-		 ),
-    NewState = State#state{
-		 crawlers = Crawlers,
-		 status = started
-		},
-    {noreply, NewState};
-
-handle_cast({stop_crawlers}, State) ->
-    NewState = State#state{status = stopped},
-    {noreply, NewState};
+handle_cast({crawl}, State) ->
+    Options = get_config(normalize_url, State),
+    spawn( ?MODULE, crawl, [Options]),
+    {noreply, State};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -214,75 +201,68 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-% get_config(Option, State) ->
-%    proplists:get_value(Option, State#state.config).
+get_config(Option, State) ->
+    proplists:get_value(Option, State#state.config).
 
-analyze_url_if_needed(Url) ->
-    case is_visited_url(Url) of
-	true ->
-	    {ok, already_visited};
-	false ->
-	    analyze_url(Url)
-    end.
-
-analyze_url(Url) ->
-    ebot_db:open_or_create_url(Url),
+analyze_url_header(Url) ->
+%%    ebot_db:open_or_create_url(Url),
     ebot_db:update_url(Url),
     add_visited_url(Url).
 
-analyze_url_links_if_html_page(Url) ->
-    Doc = ebot_db:open_doc(Url),
-    case ebot_db_util:is_html_doc(Doc) of
-	true ->
-	    analyze_url_links(Url);
-	false ->
-	    {ok, not_html_page}
-    end.
-
-analyze_url_links(Url) ->
+analyze_url_body(Url, Options) ->
     case ebot_web:fetch_url_links(Url) of
 	{ok, Links} ->
+	    %% normalizing Links
+	    NormalizedLinks = lists:map(
+			       fun(U) -> ebot_url_util:normalize_url(U, Options) end,
+			       Links),
+	
+	    %% removing duplicates
+	    UniqueLinks = ebot_util:remove_duplicates(NormalizedLinks),
+
 	    %% removing already visited urls
 	    NotVisitedLinks = lists:filter(
 				fun(U) -> not is_visited_url(U) end,
-				Links),
+				UniqueLinks),
+
 	    %% retrive Url from DB
 	    lists:foreach(
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
-		      ebot_db:open_or_create_url(U),
-		      case ebot_db:is_obsolete_url(U) of
-			  {error, _Reason} ->
-			      %% TODO
-			      ko;
-			  {ok, true} ->
-			      % the url is obsolete
-			      % it will be saved in the todo queue for processing
-			      add_todo_url(U);
-			  {ok, false} ->
-			      % the url is not obsolete
-			      % it will not be saved in the todo queue
-			      % it will be saved in the visited queue
-			      add_visited_url(U)
-		      end
+		      BinUrl = list_to_binary(U),
+		      ebot_db:open_or_create_url(BinUrl),
+		      add_todo_url(BinUrl)
 	      end,
 	      NotVisitedLinks),
-	    Result =  {ok, done};
+	    %% UPDATE ebot-body-visited
+	    ebot_db:update_url_body(Url),
+	    Result =  ok;
 	Error ->
 	    Result = Error
     end,
    Result.
 
-crawl() ->
+crawl(Options) ->
     Url = get_todo_url(),
-    crawl(Url).
+    crawl(Url, Options).
 
-crawl(empty) ->
+crawl(empty, _Options) ->
     {ok, empty};
-crawl(Url) ->
-    analyze_url_if_needed(Url),
-    analyze_url_links_if_html_page(Url).
+crawl(Url, Options) ->
+    crawl_from_url_status(Url, ebot_db:url_status(Url), Options).
 
+crawl_from_url_status(Url, {ok, {header, updated}, {body,new}}, Options) ->
+    analyze_url_body(Url, Options);
+crawl_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, Options) ->
+    analyze_url_body(Url, Options);
+crawl_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _Options) ->
+    %% skipped od updated
+    ok;
+crawl_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, Options) ->
+    analyze_url_header(Url),
+    crawl(Url, Options);
+crawl_from_url_status(Url, not_found, _Options) ->
+	    io:format("analyze_url: url ~s should be already in the DB, skipping it", [binary_to_list(Url)]).
 
 show_queue(Q) ->
     List = lists:map(
