@@ -141,13 +141,7 @@ handle_call(_Request, _From, State) ->
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast({add_todo_url, Url}, State) ->
-    Queue =  State#state.todo_urls,
-    case queue:member(Url, Queue) of
-	true ->
-	    NewState = State;
-	false ->
-	    NewState = State#state{todo_urls = queue:in(Url, Queue)}
-    end,
+    NewState = add_todo_url(Url, State, is_valid_url(Url, State)),
     {noreply, NewState};
 
 handle_cast({add_visited_url, Url}, State) ->
@@ -204,6 +198,20 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
+add_todo_url(_Url, State, false) ->
+    State;
+add_todo_url(Url, State, true) when is_list(Url) ->
+    add_todo_url(list_to_binary(Url), State, true);
+add_todo_url(Url, State, true) ->
+    Queue =  State#state.todo_urls,
+    case queue:member(Url, Queue) of
+	true ->
+	    NewState = State;
+	false ->
+	    NewState = State#state{todo_urls = queue:in(Url, Queue)}
+    end,
+    NewState.
+
 analyze_url_header(Url) ->
 %%    ebot_db:open_or_create_url(Url),
     ebot_db:update_url(Url),
@@ -251,6 +259,10 @@ crawl(empty, _Options) ->
 crawl(Url, Options) ->
     crawl_from_url_status(Url, ebot_db:url_status(Url), Options).
 
+crawl_from_url_status(Url, not_found, Options) ->
+    ebot_db:open_or_create_url(Url),
+    analyze_url_header(Url),
+    crawl(Url, Options);
 crawl_from_url_status(Url, {ok, {header, updated}, {body,new}}, Options) ->
     analyze_url_body(Url, Options);
 crawl_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, Options) ->
@@ -260,9 +272,16 @@ crawl_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _Options) 
     ok;
 crawl_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, Options) ->
     analyze_url_header(Url),
-    crawl(Url, Options);
-crawl_from_url_status(Url, not_found, _Options) ->
-	    io:format("analyze_url: url ~s should be already in the DB, skipping it", [binary_to_list(Url)]).
+    crawl(Url, Options).
+
+is_valid_url(Url, State) when is_binary(Url) ->
+    is_valid_url(binary_to_list(Url), State);
+
+is_valid_url(Url, State) ->
+    MimeRElist = get_config(mime_re_list, State),
+    UrlRElist = get_config(url_re_list, State),
+    ebot_url_util:is_valid_url_using_url_regexps(Url, UrlRElist) andalso
+	ebot_url_util:is_valid_url_using_mime_regexps(Url, MimeRElist).
 
 show_queue(Q) ->
     List = lists:map(

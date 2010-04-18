@@ -11,7 +11,8 @@
 %% API
 -export([
 	 convert_to_absolute_url/2,
-	 is_valid_url_regexps/2,
+	 is_valid_url_using_mime_regexps/2,
+	 is_valid_url_using_url_regexps/2,
 	 normalize_url/2,
 	 parse_url/1,
 	 url_context/1
@@ -37,14 +38,13 @@ convert_to_absolute_url( Url, ParentUrl) ->
 	    end
     end.
 
-is_valid_url_regexps(URL, RElist) ->
-    lists:all(
-      fun({TypeMatching, Reg}) ->
-	      TypeMatching == re:run(URL, Reg,[{capture, none},caseless])
-      end,
-      RElist).
+is_valid_url_using_mime_regexps(Url, RElist) -> 
+    Mime = mochiweb_util:guess_mime(Url),
+    ebot_util:is_valid_using_regexps(Mime, RElist).
 
-
+is_valid_url_using_url_regexps(Url, RElist) -> 
+    ebot_util:is_valid_using_regexps(Url, RElist).
+ 
 %% options: 
 %%   without_internal_links
 %%   without_queries
@@ -54,9 +54,6 @@ normalize_url(Url, Options) ->
     %% sometimes I have found some spaces at the end ...
     U1 = string:strip(Url,  both, $ ),
     normalize_url_parsing_options(U1, Options).
-
-
-
     
 %%====================================================================
 %% EBOT_URL specific Internal functions
