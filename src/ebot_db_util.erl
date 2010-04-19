@@ -13,7 +13,7 @@
 	 is_html_doc/1,
 	 open_doc/2,
 	 open_or_create_url/2,
-	 update_url/3,
+	 update_url_header/3,
 	 update_url_body/2,
 	 url_status/3
 	]).
@@ -55,7 +55,7 @@ open_or_create_url(Db, Url) ->
     end.
 
     
-update_url(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
+update_url_header(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
     {Proplist} = open_doc(Db, Url), 
     Header_keys = ebot_header_keys(),	    
     NewDoc = lists:foldl(
@@ -78,7 +78,7 @@ update_url(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
 		Http_returncode,
 		NewDoc),
     save_doc(Db, NewDoc2);
-update_url(_Db, _Url, _) ->
+update_url_header(_Db, _Url, _) ->
     error.
 
 update_url_body(Db, Url) ->
@@ -146,17 +146,18 @@ ebot_header_keys()->
 save_doc(Db, Doc) ->
     couchbeam_db:save_doc(Db, Doc).
 
-removing_db_stardard_keys(Keys) ->
-    lists:filter(
-      fun(Key) ->
-	      case re:run(Key,<<"^_">>) of
-		  {match, _} ->
-		      false;
-		  nomatch ->
-		      true
-	      end
-      end,
-      Keys).
+
+%% removing_db_stardard_keys(Keys) ->
+%%     lists:filter(
+%%       fun(Key) ->
+%% 	      case re:run(Key,<<"^_">>) of
+%% 		  {match, _} ->
+%% 		      false;
+%% 		  nomatch ->
+%% 		      true
+%% 	      end
+%%       end,
+%%       Keys).
 
 update_url_timestamp_by_key(Db, Url, Key) ->
     Doc = open_doc(Db, Url),

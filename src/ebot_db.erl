@@ -41,7 +41,7 @@
 	 create_url/1,
 	 open_doc/1,
 	 open_or_create_url/1,
-	 update_url/1,
+	 update_url_header/1,
 	 update_url_body/1,
 	 url_status/1
 	]).
@@ -80,8 +80,8 @@ open_or_create_url(Url) ->
     gen_server:call(?MODULE, {open_or_create_url, Url}).
 create_url(Url) ->
     gen_server:cast(?MODULE, {create_url, Url}).
-update_url(Url) ->
-    gen_server:call(?MODULE, {update_url, Url}).
+update_url_header(Url) ->
+    gen_server:call(?MODULE, {update_url_header, Url}).
 update_url_body(Url) ->
     gen_server:call(?MODULE, {update_url_body, Url}).
 %%====================================================================
@@ -138,11 +138,11 @@ handle_call({statistics}, _From, State) ->
     NewState = State,
     {reply, Reply, NewState};
 
-handle_call({update_url, Url}, _From, State) ->
+handle_call({update_url_header, Url}, _From, State) ->
     %% TODO: adding try & catch to avoid timeouts
 
     ReqResult = ebot_web:fetch_url_head(Url),
-    Reply = ebot_db_util:update_url(State#state.db, Url, ReqResult),
+    Reply = ebot_db_util:update_url_header(State#state.db, Url, ReqResult),
     {reply, Reply, State};
 
 handle_call({update_url_body, Url}, _From, State) ->

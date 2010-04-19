@@ -214,7 +214,7 @@ add_todo_url(Url, State, true) ->
 
 analyze_url_header(Url) ->
 %%    ebot_db:open_or_create_url(Url),
-    ebot_db:update_url(Url),
+    ebot_db:update_url_header(Url),
     add_visited_url(Url).
 
 analyze_url_body(Url, Options) ->
