@@ -140,8 +140,13 @@ handle_call({statistics}, _From, State) ->
 
 handle_call({update_url_header, Url}, _From, State) ->
     %% TODO: adding try & catch to avoid timeouts
-
     ReqResult = ebot_web:fetch_url_head(Url),
+%    ReqResult = try ebot_web:fetch_url_head(Url)
+%		catch
+%		    Exp:What -> 
+%			io:format("ebot_db: error in  ebot_web:fetch_url_head"),
+%			{error, {Exp,What}} 
+%		end,
     Reply = ebot_db_util:update_url_header(State#state.db, Url, ReqResult),
     {reply, Reply, State};
 

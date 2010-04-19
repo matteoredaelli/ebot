@@ -54,7 +54,8 @@ open_or_create_url(Db, Url) ->
 	    Doc
     end.
 
-    
+update_url_header(_Db, _Url,{error, _}) ->
+    error;
 update_url_header(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
     {Proplist} = open_doc(Db, Url), 
     Header_keys = ebot_header_keys(),	    

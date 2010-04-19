@@ -174,3 +174,4 @@ fetch_url(URL, Command, State) ->
     Request_options = get_config(request_options, State),
     Http_options = get_config(http_options, State),
     ebot_web_util:fetch_url(URL, Command, Http_header,Http_options,Request_options).
+	    
