@@ -4,3 +4,4 @@
 deps/*
 ebin/*
 priv/log/*
+.autosave

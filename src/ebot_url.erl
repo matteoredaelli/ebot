@@ -19,6 +19,7 @@
 	 analyze_url/2,
 	 info/0,
 	 is_visited_url/1,
+	 show_candidated_urls/0,
 	 show_visited_urls/0,
 	 start_link/0,
 	 statistics/0
@@ -33,6 +34,7 @@
 	  counter = 0,
 	  crawlers = [],
 	  status = started,
+	  candidated_urls = queue:new(),
 	  visited_urls = queue:new()
 	 }).
 
@@ -56,6 +58,8 @@ crawl() ->
     gen_server:cast(?MODULE, {crawl}).
 info() ->
     gen_server:call(?MODULE, {info}).
+show_candidated_urls() ->
+    gen_server:call(?MODULE, {show_candidated_urls}).
 show_visited_urls() ->
     gen_server:call(?MODULE, {show_visited_urls}).
 statistics() ->
@@ -99,6 +103,10 @@ handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
 
+handle_call({show_candidated_urls}, _From, State) ->
+    Reply = show_queue(State#state.candidated_urls),
+    {reply, Reply, State};
+
 handle_call({show_visited_urls}, _From, State) ->
     Reply = show_queue(State#state.visited_urls),
     {reply, Reply, State};
@@ -119,13 +127,8 @@ handle_call(_Request, _From, State) ->
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast({add_candidated_url, Url}, State) ->
-    case  is_valid_url(Url, State) of
-	true ->
-	    ebot_amqp:add_candidated_url(Url);
-	false ->
-	    ok
-    end,
-    {noreply, State};
+    NewState = add_candidated_url(Url, State, is_valid_url(Url, State)),
+    {noreply, NewState};
 
 handle_cast({add_visited_url, Url}, State) ->
     Queue =  State#state.visited_urls,
@@ -182,7 +185,21 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-
+add_candidated_url(_Url, State, false) ->
+    State;
+add_candidated_url(Url, State, true) ->
+    Queue =  State#state.candidated_urls,
+    case queue:member(Url, Queue) of
+	true  ->
+	    NewState = State;
+	false ->
+	    NewState = State#state{
+			 candidated_urls = queue:in(Url, Queue)
+			}
+    end,
+    ebot_amqp:add_candidated_url(Url),
+    NewState.
+     
 analyze_url(empty, _Options) ->
     {ok, empty};
 analyze_url(Url, Options) ->

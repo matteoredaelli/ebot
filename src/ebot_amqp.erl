@@ -165,7 +165,6 @@ ampq_connect_and_get_channel() ->
     Connection = amqp_connection:start_network(),
 
     %% Once you have a connection to the server, you can start an AMQP channel
-
     %% TODO : verify 
 
     Channel = amqp_connection:open_channel(Connection),
@@ -189,7 +188,8 @@ amqp_basic_get_message(Channel, Queue) ->
 amqp_send_message(RoutingKey, Payload, State) ->
     Channel =  State#state.channel,
     Exchange =  State#state.exchange,
-    BasicPublish = #'basic.publish'{exchange = Exchange, routing_key = RoutingKey},
+    BasicPublish = #'basic.publish'{exchange = Exchange, 
+				    routing_key = RoutingKey},
 
     Msg = #amqp_msg{
       payload = Payload
