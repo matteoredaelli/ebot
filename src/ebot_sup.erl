@@ -56,17 +56,20 @@ init([]) ->
 
 %% EBOT processes
 
+    EbotAmqp = {ebot_amqp,
+	       {ebot_amqp, start_link, []},
+	       permanent, 5000, worker, dynamic},
     EbotDb = {ebot_db,
 	       {ebot_db, start_link, []},
 	       permanent, 5000, worker, dynamic},
     EbotHtml = {ebot_html,
 	       {ebot_html, start_link, []},
 	       permanent, 5000, worker, dynamic},
+    EbotUrl = {ebot_url,
+	       {ebot_url, start_link, []},
+	       permanent, 5000, worker, dynamic},
     EbotWeb = {ebot_web,
 	       {ebot_web, start_link, []},
 	       permanent, 5000, worker, dynamic},
-    EbotCrawler = {ebot_crawler,
-	       {ebot_crawler, start_link, []},
-	       permanent, 5000, worker, dynamic},
-    Processes = [EbotDb, EbotHtml, EbotWeb, EbotCrawler, Web],
+    Processes = [EbotAmqp, EbotDb, EbotHtml, EbotUrl, EbotWeb, Web],
     {ok, {{one_for_one, 10, 10}, Processes}}.

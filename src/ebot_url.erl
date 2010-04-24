@@ -1,11 +1,11 @@
 %%%-------------------------------------------------------------------
-%%% File    : ebot_crawler.erl
+%%% File    : ebot_url.erl
 %%% Author  : matteo <<matteo.redaelli@@libero.it>
 %%% Description : 
 %%%
 %%% Created :  4 Oct 2009 by matteo <matteo@redaelli.org>
 %%%-------------------------------------------------------------------
--module(ebot_crawler).
+-module(ebot_url).
 -author("matteo.redaelli@@libero.it").
 -define(SERVER, ?MODULE).
 
@@ -13,14 +13,12 @@
 
 %% API
 -export([
-	 add_todo_url/1,
+	 add_candidated_url/1,
 	 add_visited_url/1,
 	 crawl/0,
-	 crawl/1,
-	 get_todo_url/0,
+	 analyze_url/2,
 	 info/0,
 	 is_visited_url/1,
-	 show_todo_urls/0,
 	 show_visited_urls/0,
 	 start_link/0,
 	 statistics/0
@@ -35,8 +33,7 @@
 	  counter = 0,
 	  crawlers = [],
 	  status = started,
-	  visited_urls = queue:new(),
-	  todo_urls =  queue:new()
+	  visited_urls = queue:new()
 	 }).
 
 %%====================================================================
@@ -49,20 +46,16 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-add_todo_url(Url) ->
-    gen_server:cast(?MODULE, {add_todo_url, Url}).
+add_candidated_url(Url) ->
+    gen_server:cast(?MODULE, {add_candidated_url, Url}).
 add_visited_url(Url) ->
     gen_server:cast(?MODULE, {add_visited_url, Url}).
-get_todo_url() ->
-    gen_server:call(?MODULE, {get_todo_url}).
 is_visited_url(Url) ->
     gen_server:call(?MODULE, {is_visited_url, Url}).
 crawl() ->
     gen_server:cast(?MODULE, {crawl}).
 info() ->
     gen_server:call(?MODULE, {info}).
-show_todo_urls() ->
-    gen_server:call(?MODULE, {show_todo_urls}).
 show_visited_urls() ->
     gen_server:call(?MODULE, {show_visited_urls}).
 statistics() ->
@@ -97,17 +90,6 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------;
 
-handle_call({get_todo_url}, _From, State) ->
-    Queue = State#state.todo_urls,
-    case queue:out(Queue) of
-	{{value, Result}, NewQueue} ->
-	    NewState = State#state{ todo_urls = NewQueue };
-	{empty, Queue} ->
-	    NewState = State,
-	    Result = empty
-    end,
-    {reply, Result, NewState};
-
 handle_call({is_visited_url, Url}, _From, State) ->
     Visited = State#state.visited_urls,
     Result = queue:member(Url, Visited),
@@ -115,10 +97,6 @@ handle_call({is_visited_url, Url}, _From, State) ->
 
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
-    {reply, Reply, State};
-
-handle_call({show_todo_urls}, _From, State) ->
-    Reply = show_queue(State#state.todo_urls),
     {reply, Reply, State};
 
 handle_call({show_visited_urls}, _From, State) ->
@@ -140,9 +118,14 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({add_todo_url, Url}, State) ->
-    NewState = add_todo_url(Url, State, is_valid_url(Url, State)),
-    {noreply, NewState};
+handle_cast({add_candidated_url, Url}, State) ->
+    case  is_valid_url(Url, State) of
+	true ->
+	    ebot_amqp:add_candidated_url(Url);
+	false ->
+	    ok
+    end,
+    {noreply, State};
 
 handle_cast({add_visited_url, Url}, State) ->
     Queue =  State#state.visited_urls,
@@ -159,7 +142,8 @@ handle_cast({add_visited_url, Url}, State) ->
 
 handle_cast({crawl}, State) ->
     Options = get_config(normalize_url, State),
-    spawn( ?MODULE, crawl, [Options]),
+    Url = ebot_amqp:get_candidated_url(),
+    spawn( ?MODULE, analyze_url, [Url, Options]),
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -198,24 +182,20 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-add_todo_url(_Url, State, false) ->
-    State;
-add_todo_url(Url, State, true) when is_list(Url) ->
-    add_todo_url(list_to_binary(Url), State, true);
-add_todo_url(Url, State, true) ->
-    Queue =  State#state.todo_urls,
-    case queue:member(Url, Queue) of
-	true ->
-	    NewState = State;
-	false ->
-	    NewState = State#state{todo_urls = queue:in(Url, Queue)}
-    end,
-    NewState.
+
+analyze_url(empty, _Options) ->
+    {ok, empty};
+analyze_url(Url, Options) ->
+    analyze_url_from_url_status(Url, ebot_db:url_status(Url), Options).
 
 analyze_url_header(Url) ->
-%%    ebot_db:open_or_create_url(Url),
-    ebot_db:update_url_header(Url),
-    add_visited_url(Url).
+    case Result = ebot_web:fetch_url_head(Url) of
+	{error, Reason} -> 
+	    {error, Reason};
+	Result ->
+	    ebot_db:update_url_header(Url, Result),
+	    add_visited_url(Url)
+    end.
 
 analyze_url_body(Url, Options) ->
     case ebot_web:fetch_url_links(Url) of
@@ -239,7 +219,7 @@ analyze_url_body(Url, Options) ->
 		      %% creating the url in the database if it doen't exists
 		      BinUrl = list_to_binary(U),
 		      ebot_db:open_or_create_url(BinUrl),
-		      add_todo_url(BinUrl)
+		      add_candidated_url(BinUrl)
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited
@@ -250,29 +230,22 @@ analyze_url_body(Url, Options) ->
     end,
    Result.
 
-crawl(Options) ->
-    Url = get_todo_url(),
-    crawl(Url, Options).
-
-crawl(empty, _Options) ->
-    {ok, empty};
-crawl(Url, Options) ->
-    crawl_from_url_status(Url, ebot_db:url_status(Url), Options).
-
-crawl_from_url_status(Url, not_found, Options) ->
+analyze_url_from_url_status(Url, not_found, Options) ->
     ebot_db:open_or_create_url(Url),
     analyze_url_header(Url),
-    crawl(Url, Options);
-crawl_from_url_status(Url, {ok, {header, updated}, {body,new}}, Options) ->
+    %% not suse if teh url is html or not and so coming back 
+    %% to check url_status
+    analyze_url(Url, Options);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, Options) ->
     analyze_url_body(Url, Options);
-crawl_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, Options) ->
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, Options) ->
     analyze_url_body(Url, Options);
-crawl_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _Options) ->
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _Options) ->
     %% skipped od updated
     ok;
-crawl_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, Options) ->
+analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, Options) ->
     analyze_url_header(Url),
-    crawl(Url, Options).
+    analyze_url(Url, Options).
 
 is_valid_url(Url, State) when is_binary(Url) ->
     is_valid_url(binary_to_list(Url), State);
