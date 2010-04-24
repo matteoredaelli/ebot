@@ -93,6 +93,9 @@ parse_path(Path) ->
     Sep = string:rstr(Path,"/"),
     {string:sub_string(Path,1, Sep), string:sub_string(Path, Sep + 1)}.
 
+parse_url(URL) when is_binary(URL) ->
+    parse_url( binary_to_list(URL));
+
 parse_url(URL) ->
     case http_uri:parse(URL) of
 	{error, Result} ->

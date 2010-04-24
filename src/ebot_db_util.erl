@@ -27,6 +27,7 @@
 %%--------------------------------------------------------------------
     
 create_url(Db, Url) ->
+    {Domain,_,_,_} = ebot_url_util:parse_url(Url),
     Doc = {[
 	    {<<"_id">>, Url},
 	    {<<"http-returncode">>,0},
@@ -37,6 +38,7 @@ create_url(Db, Url) ->
 	    {<<"last-modified">>, <<"">>},
 	    {<<"server">>, <<"">>},
 	    {<<"ebot-body-visited">>, <<"">>},
+	    {<<"ebot-domain">>, list_to_binary(Domain)},
 	    {<<"x-powered-by">>,<<"">>}
 	   ]},
     create_doc(Db, Doc, <<"url">>).
