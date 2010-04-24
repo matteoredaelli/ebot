@@ -15,7 +15,8 @@
 	 is_valid_url_using_url_regexps/2,
 	 normalize_url/2,
 	 parse_url/1,
-	 url_context/1
+	 url_context/1,
+	 url_depth/1
 	]).
 
 %%--------------------------------------------------------------------
@@ -67,7 +68,7 @@ normalize_path(Path) ->
 	{ok, NewTokens} ->
 	    "/" ++ string:join(NewTokens,"/");
 	{error, _} ->
-	    "/too_many_backs/"
+	    "/"
     end.
 
 normalize_path([".."|L], {Cont,NewList}) ->
@@ -130,6 +131,10 @@ normalize_url_parsing_options(Url, []) ->
 url_context(URL) ->
     {Domain,Folder,_File,_Query} = parse_url(URL),
     Domain ++ Folder.
+
+url_depth(Url) ->
+    {_Domain,Folder,_File,_Query} = parse_url(Url),
+    length(string:tokens(Folder, "/")).
 
 url_without_internal_links(URL) ->
     {Scheme, Netloc, Path, Query, _Fragment} = mochiweb_util:urlsplit(URL),

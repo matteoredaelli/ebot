@@ -15,7 +15,7 @@
 -export([
 	 add_candidated_url/1,
 	 add_visited_url/1,
-	 crawl/0,
+	 crawl/1,
 	 analyze_url/2,
 	 info/0,
 	 is_visited_url/1,
@@ -54,8 +54,8 @@ add_visited_url(Url) ->
     gen_server:cast(?MODULE, {add_visited_url, Url}).
 is_visited_url(Url) ->
     gen_server:call(?MODULE, {is_visited_url, Url}).
-crawl() ->
-    gen_server:cast(?MODULE, {crawl}).
+crawl(Depth) ->
+    gen_server:cast(?MODULE, {crawl, Depth}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_candidated_urls() ->
@@ -143,9 +143,9 @@ handle_cast({add_visited_url, Url}, State) ->
     end,
     {noreply, NewState};
 
-handle_cast({crawl}, State) ->
+handle_cast({crawl, Depth}, State) ->
     Options = get_config(normalize_url, State),
-    Url = ebot_amqp:get_candidated_url(),
+    Url = ebot_amqp:get_candidated_url(Depth),
     spawn( ?MODULE, analyze_url, [Url, Options]),
     {noreply, State};
 
