@@ -11,6 +11,7 @@
 %% API
 -export([
 	 convert_to_absolute_url/2,
+	 is_valid_url_using_known_invalid_regexps/1,
 	 is_valid_url_using_mime_regexps/2,
 	 is_valid_url_using_url_regexps/2,
 	 normalize_url/2,
@@ -39,6 +40,14 @@ convert_to_absolute_url( Url, ParentUrl) ->
 		    Domain ++ normalize_path(Folder ++ Url)
 	    end
     end.
+
+is_valid_url_using_known_invalid_regexps(Url) ->
+    RElist = [
+	      {nomatch, "feed:"},
+	      {nomatch, "javascript:"},
+	      {nomatch, "mailto:"}
+	     ],
+    ebot_util:is_valid_using_regexps(Url, RElist).
 
 is_valid_url_using_mime_regexps(Url, RElist) -> 
     Mime = mochiweb_util:guess_mime(Url),
