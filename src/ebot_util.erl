@@ -14,7 +14,8 @@
 	  is_valid_using_regexps/2,
 	  remove_duplicates/1,
 	  safe_binary_to_list/1,
-	  safe_list_to_binary/1
+	  safe_list_to_binary/1,
+	  string_replacements_using_regexps/2
 	 ]).
 
 %%====================================================================
@@ -60,4 +61,11 @@ safe_list_to_binary(L) when is_list(L) ->
     list_to_binary(L);
 safe_list_to_binary(L) -> L.
     
-    
+string_replacements_using_regexps(String, RElist) ->
+    lists:foldl(
+      fun({From,To}, OldStr) ->
+	      re:replace(OldStr, From, To,  [{return,list},global]) end,
+      String,
+      RElist
+     ).
+
