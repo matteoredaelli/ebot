@@ -27,7 +27,7 @@
 %%--------------------------------------------------------------------
     
 create_url(Db, Url) ->
-    {Domain,_,_,_} = ebot_url_util:parse_url(Url),
+    Domain = ebot_url_util:url_domain(Url),
     Doc = {[
 	    {<<"_id">>, Url},
 	    {<<"http-returncode">>,0},
