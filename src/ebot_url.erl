@@ -15,8 +15,8 @@
 -export([
 	 add_candidated_url/1,
 	 add_visited_url/1,
-	 crawl/1,
-	 analyze_url/2,
+	 crawl/2,
+	 start_crawlers/0,
 	 info/0,
 	 is_visited_url/1,
 	 show_candidated_urls/0,
@@ -32,7 +32,6 @@
 -record(state, {
 	  config = [],
 	  counter = 0,
-	  crawlers = [],
 	  status = started,
 	  candidated_urls = queue:new(),
 	  visited_urls = queue:new()
@@ -54,8 +53,8 @@ add_visited_url(Url) ->
     gen_server:cast(?MODULE, {add_visited_url, Url}).
 is_visited_url(Url) ->
     gen_server:call(?MODULE, {is_visited_url, Url}).
-crawl(Depth) ->
-    gen_server:cast(?MODULE, {crawl, Depth}).
+start_crawlers() ->
+    gen_server:cast(?MODULE, {start_crawlers}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_candidated_urls() ->
@@ -143,10 +142,13 @@ handle_cast({add_visited_url, Url}, State) ->
     end,
     {noreply, NewState};
 
-handle_cast({crawl, Depth}, State) ->
+handle_cast({start_crawlers}, State) ->
     Options = get_config(normalize_url, State),
-    Url = ebot_amqp:get_candidated_url(Depth),
-    spawn( ?MODULE, analyze_url, [Url, Options]),
+    Pools = get_config(crawler_pools, State),
+    lists:foreach(
+      fun({Depth,Tot}) ->
+	      start_crawlers(Depth, Tot, Options) end,
+      Pools), 
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -199,7 +201,7 @@ add_candidated_url(Url, State, true) ->
     end,
     ebot_amqp:add_candidated_url(Url),
     NewState.
-     
+
 analyze_url(empty, _Options) ->
     {ok, empty};
 analyze_url(Url, Options) ->
@@ -264,6 +266,12 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, Option
     analyze_url_header(Url),
     analyze_url(Url, Options).
 
+  
+crawl(Depth, Options) ->
+    Url = ebot_amqp:get_candidated_url(Depth),
+    analyze_url(Url, Options),
+    crawl(Depth, Options).
+
 is_valid_url(Url, State) when is_binary(Url) ->
     is_valid_url(binary_to_list(Url), State);
 
@@ -279,3 +287,9 @@ show_queue(Q) ->
 	     queue:to_list( Q)
 	    ),
     string:join( List, ", ").
+
+start_crawlers(Depth, Total, Options) -> 
+    lists:foreach(
+      fun(_) ->
+	      spawn( ?MODULE, crawl, [Depth, Options]) end,
+      lists:seq(1,Total)).
