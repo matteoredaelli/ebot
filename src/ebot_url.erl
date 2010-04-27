@@ -76,6 +76,12 @@ statistics() ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
+
+%%	error_logger:error_report({?MODULE, ?LINE,
+%%                                       {applicazione, partita}}),
+%%	error_logger:error_msg("ebot demo webmachine error: "),
+%%	error_logger:info_msg("ebot demo webmachine info: "),
+
     case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
 	    {ok, #state{config=Config}};

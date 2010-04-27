@@ -180,7 +180,9 @@ url_with_max_depth(Url, MaxDepth, _Depth) ->
     Tokens = string:tokens(Folder, "/"),
     NewTokens = lists:sublist(Tokens, MaxDepth),
     NewFolder = "/" ++ string:join(NewTokens,"/") ++ "/",
-    url_unparse({Domain,NewFolder,"",""}).
+    NewUrl = url_unparse({Domain,NewFolder,"",""}),
+    error_logger:info_report({?MODULE, ?LINE, {renamed_url, Url, NewUrl}}),
+    NewUrl.
 
 url_without_internal_links(Url) ->
     {Scheme, Netloc, Path, Query, _Fragment} = mochiweb_util:urlsplit(Url),
