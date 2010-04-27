@@ -179,7 +179,7 @@ url_with_max_depth(Url, MaxDepth, _Depth) ->
     {Domain,Folder,_File,_Query} = parse_url(Url),
     Tokens = string:tokens(Folder, "/"),
     NewTokens = lists:sublist(Tokens, MaxDepth),
-    NewFolder = string:join(NewTokens,"/"),
+    NewFolder = "/" ++ string:join(NewTokens,"/") ++ "/",
     url_unparse({Domain,NewFolder,"",""}).
 
 url_without_internal_links(Url) ->

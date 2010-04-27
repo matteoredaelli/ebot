@@ -221,7 +221,9 @@ analyze_url_body(Url, Options) ->
 	{ok, Links} ->
 	    %% normalizing Links
 	    NormalizedLinks = lists:map(
-			       fun(U) -> ebot_url_util:normalize_url(U, Options) end,
+			       fun(U) -> 
+				       ebot_url_util:normalize_url(U, Options)
+			       end,
 			       Links),
 	
 	    %% removing duplicates
