@@ -19,10 +19,12 @@
 	 start_crawlers/0,
 	 info/0,
 	 is_visited_url/1,
+	 show_active_crawlers/0,
 	 show_candidated_urls/0,
 	 show_visited_urls/0,
 	 start_link/0,
-	 statistics/0
+	 statistics/0,
+	 stop_crawler/1
 	]).
 
 %% gen_server callbacks
@@ -33,6 +35,7 @@
 	  config = [],
 	  counter = 0,
 	  status = started,
+	  active_crawlers = sets:new(),
 	  candidated_urls = queue:new(),
 	  visited_urls = queue:new()
 	 }).
@@ -57,12 +60,16 @@ start_crawlers() ->
     gen_server:cast(?MODULE, {start_crawlers}).
 info() ->
     gen_server:call(?MODULE, {info}).
+show_active_crawlers() ->
+    gen_server:call(?MODULE, {show_active_crawlers}).
 show_candidated_urls() ->
     gen_server:call(?MODULE, {show_candidated_urls}).
 show_visited_urls() ->
     gen_server:call(?MODULE, {show_visited_urls}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
+stop_crawler(Crawler) ->
+    gen_server:call(?MODULE, {stop_crawler, Crawler}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -108,6 +115,10 @@ handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
 
+handle_call({show_active_crawlers}, _From, State) ->
+    Reply = State#state.active_crawlers,
+    {reply, Reply, State};
+
 handle_call({show_candidated_urls}, _From, State) ->
     Reply = show_queue(State#state.candidated_urls),
     {reply, Reply, State};
@@ -117,9 +128,16 @@ handle_call({show_visited_urls}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
-    Reply = atom_to_list(?MODULE) ++ 
-	": counter=" ++ integer_to_list(State#state.counter),
+    Reply = atom_to_list(?MODULE),
     NewState = State,
+    {reply, Reply, NewState};
+
+handle_call({stop_crawler, {Depth,Pid}}, _From, State) ->
+    Reply = atom_to_list(?MODULE),
+    NewState = State#state{
+		 active_crawlers = sets:del_element({Depth,Pid}, 
+						    State#state.active_crawlers)
+		},
     {reply, Reply, NewState};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -149,13 +167,19 @@ handle_cast({add_visited_url, Url}, State) ->
     {noreply, NewState};
 
 handle_cast({start_crawlers}, State) ->
-    Options = get_config(normalize_url, State),
     Pools = get_config(crawler_pools, State),
-    lists:foreach(
-      fun({Depth,Tot}) ->
-	      start_crawlers(Depth, Tot, Options) end,
+    Options = get_config(normalize_url, State),
+    NewCrawlers = lists:foldl(
+      fun({Depth,Tot}, Crawlers) ->
+	      OtherCrawlers = start_crawlers(Depth, Tot, Options),
+	      lists:append( Crawlers, OtherCrawlers)
+      end,
+      State#state.active_crawlers,
       Pools), 
-    {noreply, State};
+    NewState = State#state{
+		 active_crawlers = NewCrawlers
+		},
+    {noreply, NewState};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -297,7 +321,7 @@ show_queue(Q) ->
     string:join( List, ", ").
 
 start_crawlers(Depth, Total, Options) -> 
-    lists:foreach(
+    lists:map(
       fun(_) ->
-	      spawn( ?MODULE, crawl, [Depth, Options]) end,
+	      {Depth, spawn( ?MODULE, crawl, [Depth, Options])} end,
       lists:seq(1,Total)).
