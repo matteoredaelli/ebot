@@ -13,19 +13,28 @@
 
 %% API
 -export([
+	 crawl/2,
 	 info/0,
-	 start_link/0,
-	 statistics/0,
 	 fetch_url_get/1,
 	 fetch_url_head/1,
-	 fetch_url_links/1
+	 fetch_url_links/1,
+	 show_active_crawlers/0,
+	 start_crawlers/0,
+	 start_link/0,
+	 statistics/0,
+	 stop_crawler/1
 	]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
--record(state,{config=[], good=0, bad=0}).
+-record(state,{
+	  config=[], 
+	  status = started,
+	  active_crawlers = [],
+	  good=0, bad=0
+	 }).
 
 %%====================================================================
 %% API
@@ -36,16 +45,26 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
-info() ->
-    gen_server:call(?MODULE, {info}).
-statistics() ->
-    gen_server:call(?MODULE, {statistics}).
+
 fetch_url_get(URL) ->
     gen_server:call(?MODULE, {fetch_url_get, URL}).
 fetch_url_head(URL) ->
     gen_server:call(?MODULE, {fetch_url_head, URL}).
 fetch_url_links(URL) ->
     gen_server:call(?MODULE, {fetch_url_links, URL}).
+info() ->
+    gen_server:call(?MODULE, {info}).
+show_active_crawlers() ->
+    gen_server:call(?MODULE, {show_active_crawlers}).
+start_crawlers() ->
+    gen_server:cast(?MODULE, {start_crawlers}).
+statistics() ->
+    gen_server:call(?MODULE, {statistics}).
+
+
+stop_crawler(Crawler) ->
+    gen_server:call(?MODULE, {stop_crawler, Crawler}).
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -122,6 +141,18 @@ handle_call({statistics}, _From, State) ->
     NewState = State,
     {reply, Reply, NewState};
 
+handle_call({show_active_crawlers}, _From, State) ->
+    Reply = State#state.active_crawlers,
+    {reply, Reply, State};
+
+handle_call({stop_crawler, {Depth,Pid}}, _From, State) ->
+    Reply = ok,
+    NewState = State#state{
+		 active_crawlers = lists:delete({Depth,Pid}, 
+						State#state.active_crawlers)
+		},
+    {reply, Reply, NewState};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -132,6 +163,21 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
+
+handle_cast({start_crawlers}, State) ->
+    Pools = get_config(crawler_pools, State),
+    Options = get_config(normalize_url, State),
+    NewCrawlers = lists:foldl(
+      fun({Depth,Tot}, Crawlers) ->
+	      OtherCrawlers = start_crawlers(Depth, Tot, Options),
+	      lists:append( Crawlers, OtherCrawlers)
+      end,
+      State#state.active_crawlers,
+      Pools), 
+    NewState = State#state{
+		 active_crawlers = NewCrawlers
+		},
+    {noreply, NewState};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -166,6 +212,78 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
+analyze_url(empty, _Options) ->
+    {ok, empty};
+analyze_url(Url, Options) ->
+    analyze_url_from_url_status(Url, ebot_db:url_status(Url), Options).
+
+analyze_url_header(Url) ->
+    case Result = fetch_url_head(Url) of
+	{error, Reason} -> 
+	    {error, Reason};
+	Result ->
+	    ebot_db:update_url_header(Url, Result),
+	    ebot_url:add_visited_url(Url)
+    end.
+
+analyze_url_body(Url, Options) ->
+    case fetch_url_links(Url) of
+	{ok, Links} ->
+	    %% normalizing Links
+	    NormalizedLinks = lists:map(
+			       fun(U) -> 
+				       ebot_url_util:normalize_url(U, Options)
+			       end,
+			       Links),
+	
+	    %% removing duplicates
+	    UniqueLinks = ebot_util:remove_duplicates(NormalizedLinks),
+
+	    %% removing already visited urls
+	    NotVisitedLinks = lists:filter(
+				fun(U) -> not ebot_url:is_visited_url(U) end,
+				UniqueLinks),
+
+	    %% retrive Url from DB
+	    lists:foreach(
+	      fun(U) ->
+		      %% creating the url in the database if it doen't exists
+		      BinUrl = list_to_binary(U),
+		      ebot_db:open_or_create_url(BinUrl),
+		      ebot_url:add_candidated_url(BinUrl)
+	      end,
+	      NotVisitedLinks),
+	    %% UPDATE ebot-body-visited
+	    ebot_db:update_url_body(Url),
+	    Result =  ok;
+	Error ->
+	    Result = Error
+    end,
+   Result.
+
+analyze_url_from_url_status(Url, not_found, Options) ->
+    ebot_db:open_or_create_url(Url),
+    analyze_url_header(Url),
+    %% not suse if teh url is html or not and so coming back 
+    %% to check url_status
+    analyze_url(Url, Options);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, Options) ->
+    analyze_url_body(Url, Options);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, Options) ->
+    analyze_url_body(Url, Options);
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _Options) ->
+    %% skipped od updated
+    ok;
+analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, Options) ->
+    analyze_url_header(Url),
+    analyze_url(Url, Options).
+
+  
+crawl(Depth, Options) ->
+    Url = ebot_amqp:get_candidated_url(Depth),
+    analyze_url(Url, Options),
+    crawl(Depth, Options).
+
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
@@ -175,3 +293,8 @@ fetch_url(URL, Command, State) ->
     Http_options = get_config(http_options, State),
     ebot_web_util:fetch_url(URL, Command, Http_header,Http_options,Request_options).
 	    
+start_crawlers(Depth, Total, Options) -> 
+    lists:map(
+      fun(_) ->
+	      {Depth, spawn( ?MODULE, crawl, [Depth, Options])} end,
+      lists:seq(1,Total)).
