@@ -272,10 +272,12 @@ is_valid_url(Url, State) when is_binary(Url) ->
     is_valid_url(binary_to_list(Url), State);
 
 is_valid_url(Url, State) ->
-    MimeRElist = get_config(mime_any_regexps, State),
-    UrlRElist = get_config(url_any_regexps, State),
-    ebot_url_util:is_valid_url_using_any_url_regexps(Url, UrlRElist) andalso
-	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeRElist).
+    MimeAnyRE = get_config(mime_any_regexps, State),
+    UrlAllRE = get_config(url_all_regexps, State),
+    UrlAnyRE = get_config(url_any_regexps, State),
+    ebot_util:is_valid_using_all_regexps(Url, UrlAllRE) andalso
+	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
+	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
 	    
 start_crawlers(Depth, Total, State) -> 
     lists:map(
