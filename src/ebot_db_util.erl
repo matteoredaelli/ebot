@@ -14,7 +14,7 @@
 	 open_doc/2,
 	 open_or_create_url/2,
 	 update_url_header/3,
-	 update_url_body/2,
+	 update_url_body/3,
 	 url_status/3
 	]).
 
@@ -39,6 +39,7 @@ create_url(Db, Url) ->
 	    {<<"server">>, <<"">>},
 	    {<<"ebot-body-visited">>, <<"">>},
 	    {<<"ebot-domain">>, list_to_binary(Domain)},
+	    {<<"ebot-links-count">>, 0},
 	    {<<"x-powered-by">>,<<"">>}
 	   ]},
     create_doc(Db, Doc, <<"url">>).
@@ -84,7 +85,9 @@ update_url_header(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
 update_url_header(_Db, _Url, _) ->
     error.
 
-update_url_body(Db, Url) ->
+update_url_body(Db, Url, LinksCount) ->
+    Doc = open_doc(Db, Url),
+    update_doc_by_key_value( Db, Doc, <<"ebot-links-count">>, LinksCount),
     update_url_timestamp_by_key(Db, Url, <<"ebot-body-visited">>).
 
 

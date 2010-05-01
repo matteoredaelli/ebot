@@ -42,7 +42,7 @@
 	 open_doc/1,
 	 open_or_create_url/1,
 	 update_url_header/2,
-	 update_url_body/1,
+	 update_url_body/2,
 	 url_status/1
 	]).
 
@@ -82,8 +82,8 @@ create_url(Url) ->
     gen_server:cast(?MODULE, {create_url, Url}).
 update_url_header(Url, ReqResponse) ->
     gen_server:call(?MODULE, {update_url_header, Url, ReqResponse}).
-update_url_body(Url) ->
-    gen_server:call(?MODULE, {update_url_body, Url}).
+update_url_body(Url, LinksCount) ->
+    gen_server:call(?MODULE, {update_url_body, Url, LinksCount}).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -150,8 +150,8 @@ handle_call({update_url_header, Url,  ReqResponse}, _From, State) ->
     Reply = ebot_db_util:update_url_header(State#state.db, Url, ReqResponse),
     {reply, Reply, State};
 
-handle_call({update_url_body, Url}, _From, State) ->
-    Reply = ebot_db_util:update_url_body(State#state.db, Url),
+handle_call({update_url_body, Url, LinksCount}, _From, State) ->
+    Reply = ebot_db_util:update_url_body(State#state.db, Url, LinksCount),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->

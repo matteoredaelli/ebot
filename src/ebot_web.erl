@@ -187,6 +187,7 @@ analyze_url_header(Url, State) ->
 analyze_url_body(Url, State) ->
     case fetch_url_links(Url, State) of
 	{ok, Links} ->
+	    LinksCount = length(Links),
 	    %% normalizing Links
 	    NormalizeOptions = get_config(normalize_url, State),
 	    NormalizedLinks = lists:map(
@@ -220,7 +221,7 @@ analyze_url_body(Url, State) ->
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited
-	    ebot_db:update_url_body(Url),
+	    ebot_db:update_url_body(Url, LinksCount),
 	    Result =  ok;
 	Error ->
 	    Result = Error
