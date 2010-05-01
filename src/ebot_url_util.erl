@@ -60,7 +60,9 @@ is_valid_url_using_any_url_regexps(Url, RElist) ->
 %%   without_internal_links
 %%   without_queries
 normalize_url(Url, Options) when is_binary(Url) ->
-    normalize_url(binary_to_list(Url), Options);
+    NewUrl = normalize_url(binary_to_list(Url), Options),
+    list_to_binary(NewUrl);
+
 normalize_url(Url, Options) ->
     %% sometimes I have found some spaces at the end ...
     U1 = string:strip(Url,  both, $ ),

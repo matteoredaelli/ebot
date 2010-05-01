@@ -215,9 +215,8 @@ analyze_url_body(Url, State) ->
 	    lists:foreach(
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
-		      BinUrl = list_to_binary(U),
-		      ebot_db:open_or_create_url(BinUrl),
-		      ebot_memcache:add_new_url(BinUrl)
+%%		      ebot_db:open_or_create_url(U),
+		      ebot_memcache:add_new_url(U)
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited

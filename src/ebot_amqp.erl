@@ -188,7 +188,7 @@ amqp_basic_get_message(Channel, Queue) ->
 			    #'basic.get'{queue = Queue, no_ack = true}) of
 	 {#'basic.get_ok'{}, Content} ->
 	     #amqp_msg{payload = Payload} = Content,
-	     io:format("Payload received: ~p~n", [Payload]),
+	     io:format("Payload received: queue=~p, val=~p~n", [Queue, Payload]),
 	     Payload;
 	 _Else ->
 	     empty
