@@ -11,8 +11,8 @@
 
 -define(SERVER, ?MODULE).
 -define(EBOT_EXCHANGE, <<"EBOT">>).
--define(EBOT_QUEUE_URL_CANDIDATES, <<"EBOT_QUEUE_URL_CANDIDATES">>).
--define(EBOT_KEY_URL_CANDIDATES, <<"ebot.url.candidates">>).
+-define(EBOT_QUEUE_URL_NEW, <<"EBOT_QUEUE_URL_NEW">>).
+-define(EBOT_KEY_URL_NEW, <<"ebot.url.new">>).
 -define(EBOT_KEY_URL_PROCESSED, <<"ebot.url.processed">>).
 -define(EBOT_KEY_URL_REFUSED, <<"ebot.url.refused">>).
 -define(TIMEOUT, 10000).
@@ -25,9 +25,9 @@
 %% API
 -export([
 	 start_link/0,
-	 add_candidated_url/1,
+	 add_new_url/1,
 	 add_refused_url/1,
-	 get_candidated_url/1
+	 get_new_url/1
 	]).
 
 %% gen_server callbacks
@@ -51,14 +51,14 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-add_candidated_url(Url) ->
-    gen_server:cast(?MODULE, {add_candidated_url, Url}).
+add_new_url(Url) ->
+    gen_server:cast(?MODULE, {add_new_url, Url}).
 
 add_refused_url(Url) ->
     gen_server:cast(?MODULE, {add_refused_url, Url}).
 
-get_candidated_url(Depth) ->
-    gen_server:call(?MODULE, {get_candidated_url, Depth}).
+get_new_url(Depth) ->
+    gen_server:call(?MODULE, {get_new_url, Depth}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -76,8 +76,8 @@ init([]) ->
 	{ok, Config} ->
 	   case ampq_connect_and_get_channel() of
 	       {ok, {Connection, Channel}} ->
-		   TotQueues = proplists:get_value(tot_candidated_queues, Config),
-		   amqp_setup_candidated_url_consumers(
+		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
+		   amqp_setup_new_url_consumers(
 		     Channel, TotQueues),
 		   {ok, #state{
 		      channel = Channel,
@@ -101,9 +101,9 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
-handle_call({get_candidated_url, Depth}, _From, State) ->
+handle_call({get_new_url, Depth}, _From, State) ->
     Channel =  State#state.channel,
-    Reply = amqp_basic_get_message(Channel, get_candidated_queue_name(Depth)),
+    Reply = amqp_basic_get_message(Channel, get_new_queue_name(Depth)),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
@@ -116,9 +116,9 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({add_candidated_url, Url}, State) ->
+handle_cast({add_new_url, Url}, State) ->
     Depth = ebot_url_util:url_depth(Url),
-    Key = get_candidated_queue_name(Depth),
+    Key = get_new_queue_name(Depth),
     amqp_send_message(Key, Url, State),
     {noreply, State};
 
@@ -215,10 +215,10 @@ amqp_send_message(RoutingKey, Payload, State) ->
     end,
     Result.
  
-amqp_setup_candidated_url_consumers(Channel, Tot) ->
+amqp_setup_new_url_consumers(Channel, Tot) ->
     lists:foreach(
       fun(N) ->
-	      KeyQueue =  get_candidated_queue_name(N),
+	      KeyQueue =  get_new_queue_name(N),
 	      amqp_setup_consumer(
 		  Channel,
 		  KeyQueue,
@@ -249,8 +249,8 @@ amqp_setup_consumer(Channel, Q, X, Key) ->
 log(Key,Value) ->
     io:format("~p: ~p~n",[Key,Value]).
 
-get_candidated_queue_name(Depth) ->
+get_new_queue_name(Depth) ->
     list_to_binary( 
-      binary_to_list(?EBOT_KEY_URL_CANDIDATES) ++ 
+      binary_to_list(?EBOT_KEY_URL_NEW) ++ 
       "." ++ 
       integer_to_list(Depth)).

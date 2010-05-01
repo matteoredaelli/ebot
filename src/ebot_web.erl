@@ -216,7 +216,7 @@ analyze_url_body(Url, State) ->
 		      %% creating the url in the database if it doen't exists
 		      BinUrl = list_to_binary(U),
 		      ebot_db:open_or_create_url(BinUrl),
-		      ebot_memcache:add_candidated_url(BinUrl)
+		      ebot_memcache:add_new_url(BinUrl)
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited
@@ -246,7 +246,7 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
 
   
 crawl(Depth, State) ->
-    Url = ebot_amqp:get_candidated_url(Depth),
+    Url = ebot_amqp:get_new_url(Depth),
     analyze_url(Url, State),
     crawl(Depth, State).
 
