@@ -19,7 +19,9 @@
 %%--------------------------------------------------------------------
 
 get_links(Html, ParentUrl) when is_binary(ParentUrl) ->
-    get_links(Html, binary_to_list(ParentUrl));
+    Links = get_links(Html, binary_to_list(ParentUrl)),
+    lists:map( fun list_to_binary/1, Links);
+
 get_links(Html, ParentUrl) ->
     Tokens = mochiweb_html:tokens(Html),
 
@@ -27,7 +29,7 @@ get_links(Html, ParentUrl) ->
 	     fun(Token, Links) -> 
 		     case Token of 
 			 {start_tag,<<"a">>,[{<<"href">>,Url}],false} ->
-			     case ebot_url_util:is_valid_url_using_known_invalid_regexps(Url) of
+			     case ebot_url_util:is_valid_url_using_all_known_invalid_regexps(Url) of
 				 true ->
 				     AbsoluteUrl = ebot_url_util:convert_to_absolute_url( 
 						     binary_to_list(Url), 

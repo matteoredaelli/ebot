@@ -11,7 +11,8 @@
 -export([ 
 	  load_settings/1,
 	  info/1,
-	  is_valid_using_regexps/2,
+	  is_valid_using_all_regexps/2,
+	  is_valid_using_any_regexps/2,
 	  remove_duplicates/1,
 	  safe_binary_to_list/1,
 	  safe_list_to_binary/1,
@@ -32,7 +33,7 @@ info(Config) ->
     Reply.
 
 
-is_valid_using_regexps(String, RElist) ->
+is_valid_using_all_regexps(String, RElist) ->
     lists:all(
       fun({Result, RE}) ->
 	      Result == re:run(String, RE, [{capture, none},caseless]) 
@@ -40,6 +41,13 @@ is_valid_using_regexps(String, RElist) ->
       RElist
      ).
 
+is_valid_using_any_regexps(String, RElist) ->
+    lists:any(
+      fun({Result, RE}) ->
+	      Result == re:run(String, RE, [{capture, none},caseless]) 
+      end,
+      RElist
+     ).
 
 load_settings(Module) ->
     %% TODO checking if file exists

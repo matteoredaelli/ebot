@@ -1,11 +1,11 @@
 %%%-------------------------------------------------------------------
-%%% File    : ebot_url.erl
+%%% File    : ebot_memcache.erl
 %%% Author  : matteo <<matteo.redaelli@@libero.it>
 %%% Description : 
 %%%
 %%% Created :  4 Oct 2009 by matteo <matteo@redaelli.org>
 %%%-------------------------------------------------------------------
--module(ebot_url).
+-module(ebot_memcache).
 -author("matteo.redaelli@@libero.it").
 -define(SERVER, ?MODULE).
 
@@ -129,7 +129,7 @@ handle_call(_Request, _From, State) ->
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast({add_candidated_url, Url}, State) ->
-    NewState = add_candidated_url(Url, State, is_valid_url(Url, State)),
+    NewState = add_candidated_url(Url, State),
     {noreply, NewState};
 
 handle_cast({add_visited_url, Url}, State) ->
@@ -182,9 +182,7 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-add_candidated_url(_Url, State, false) ->
-    State;
-add_candidated_url(Url, State, true) ->
+add_candidated_url(Url, State) ->
     Queue =  State#state.candidated_urls,
     case queue:member(Url, Queue) of
 	true  ->
@@ -198,15 +196,6 @@ add_candidated_url(Url, State, true) ->
     NewState.
 
 
-
-is_valid_url(Url, State) when is_binary(Url) ->
-    is_valid_url(binary_to_list(Url), State);
-
-is_valid_url(Url, State) ->
-    MimeRElist = get_config(mime_re_list, State),
-    UrlRElist = get_config(url_re_list, State),
-    ebot_url_util:is_valid_url_using_url_regexps(Url, UrlRElist) andalso
-	ebot_url_util:is_valid_url_using_mime_regexps(Url, MimeRElist).
 
 show_queue(Q) ->
     List = lists:map(

@@ -11,9 +11,9 @@
 %% API
 -export([
 	 convert_to_absolute_url/2,
-	 is_valid_url_using_known_invalid_regexps/1,
-	 is_valid_url_using_mime_regexps/2,
-	 is_valid_url_using_url_regexps/2,
+	 is_valid_url_using_all_known_invalid_regexps/1,
+	 is_valid_url_using_any_mime_regexps/2,
+	 is_valid_url_using_any_url_regexps/2,
 	 normalize_url/2,
 	 parse_url/1,
 	 url_context/1,
@@ -41,20 +41,20 @@ convert_to_absolute_url( Url, ParentUrl) ->
 	    end
     end.
 
-is_valid_url_using_known_invalid_regexps(Url) ->
+is_valid_url_using_all_known_invalid_regexps(Url) ->
     RElist = [
 	      {nomatch, "feed:"},
 	      {nomatch, "javascript:"},
 	      {nomatch, "mailto:"}
 	     ],
-    ebot_util:is_valid_using_regexps(Url, RElist).
+    ebot_util:is_valid_using_all_regexps(Url, RElist).
 
-is_valid_url_using_mime_regexps(Url, RElist) -> 
+is_valid_url_using_any_mime_regexps(Url, RElist) -> 
     Mime = mochiweb_util:guess_mime(Url),
-    ebot_util:is_valid_using_regexps(Mime, RElist).
+    ebot_util:is_valid_using_any_regexps(Mime, RElist).
 
-is_valid_url_using_url_regexps(Url, RElist) -> 
-    ebot_util:is_valid_using_regexps(Url, RElist).
+is_valid_url_using_any_url_regexps(Url, RElist) -> 
+    ebot_util:is_valid_using_any_regexps(Url, RElist).
  
 %% options: 
 %%   without_internal_links
@@ -140,7 +140,7 @@ normalize_path([], {_,_}) ->
     {error, too_many_backs}.
 
 normalize_url_parsing_options(Url, [{max_depth,MaxDepth}|Options]) ->
-    NewUrl = url_with_max_depth(Url, MaxDepth),
+    NewUrl = url_using_max_depth(Url, MaxDepth),
     normalize_url_parsing_options(NewUrl, Options);
 
 normalize_url_parsing_options(Url, [without_internal_links|Options]) ->
@@ -169,13 +169,13 @@ normalize_url_using_known_regexps_replacements(Url) ->
 url_unparse({Domain,Folder,File,Query}) ->
     Domain ++ Folder ++ File ++ Query.
 
-url_with_max_depth(Url, MaxDepth) ->
+url_using_max_depth(Url, MaxDepth) ->
     Depth = url_depth(Url),
-    url_with_max_depth(Url, MaxDepth, Depth).
+    url_using_max_depth(Url, MaxDepth, Depth).
 
-url_with_max_depth(Url, MaxDepth, Depth) when Depth =< MaxDepth->
+url_using_max_depth(Url, MaxDepth, Depth) when Depth =< MaxDepth->
     Url;
-url_with_max_depth(Url, MaxDepth, _Depth) ->
+url_using_max_depth(Url, MaxDepth, _Depth) ->
     {Domain,Folder,_File,_Query} = parse_url(Url),
     Tokens = string:tokens(Folder, "/"),
     NewTokens = lists:sublist(Tokens, MaxDepth),
