@@ -141,6 +141,10 @@ normalize_path([], {0,NewList}) ->
 normalize_path([], {_,_}) ->
     {error, too_many_backs}.
 
+normalize_url_parsing_options(Url, [add_final_slash|Options]) ->
+    NewUrl = url_add_final_slash(Url),
+    normalize_url_parsing_options(NewUrl, Options);
+
 normalize_url_parsing_options(Url, [{max_depth,MaxDepth}|Options]) ->
     NewUrl = url_using_max_depth(Url, MaxDepth),
     normalize_url_parsing_options(NewUrl, Options);
@@ -168,6 +172,13 @@ normalize_url_using_known_regexps_replacements(Url) ->
 	     ],
     ebot_util:string_replacements_using_regexps(Url, RElist).
 
+url_add_final_slash(Url) ->
+    case re:run(Url, "http://.+.+/") of
+	{match, _} ->
+	    Url;
+	nomatch ->
+	    Url ++ "/"
+    end.
 url_unparse({Domain,Folder,File,Query}) ->
     Domain ++ Folder ++ File ++ Query.
 
