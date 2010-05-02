@@ -180,7 +180,8 @@ analyze_url_header(Url, State) ->
 	{error, Reason} -> 
 	    {error, Reason};
 	Result ->
-	    ebot_db:update_url_header(Url, Result),
+	    Options = [{head, Result}],
+	    ebot_db:update_url(Url, Options),
 	    ebot_memcache:add_visited_url(Url)
     end.
 
@@ -216,14 +217,14 @@ analyze_url_body(Url, State) ->
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
 		      ebot_db:open_or_create_url(U),
+		      ebot_memcache:add_new_url(U),
 		      Options = [{referral, Url}],
-		      ebot_db:update_url_body(U, Options),
-		      ebot_memcache:add_new_url(U)
+		      ebot_db:update_url(U, Options)
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited
-	    Options = [{link_counts,  LinksCount}],
-	    ebot_db:update_url_body(Url, Options),
+	    Options = [body_timestamp, {link_counts,  LinksCount}],
+	    ebot_db:update_url(Url, Options),
 	    Result =  ok;
 	Error ->
 	    Result = Error

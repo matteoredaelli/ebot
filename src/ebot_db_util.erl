@@ -13,8 +13,7 @@
 	 is_html_doc/1,
 	 open_doc/2,
 	 open_or_create_url/2,
-	 update_url_header/3,
-	 update_url_body/3,
+	 update_url/3,
 	 url_status/3
 	]).
 
@@ -58,43 +57,17 @@ open_or_create_url(Db, Url) ->
 	    Doc
     end.
 
-update_url_header(_Db, _Url,{error, _}) ->
-    error;
-update_url_header(Db, Url,{ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
-    {Proplist} = open_doc(Db, Url), 
-    Header_keys = ebot_header_keys(),	    
-    NewDoc = lists:foldl(
-	       fun(BKey, Doc) ->    
-		       Value = proplists:get_value(
-				 binary_to_list(BKey),
-				 Headers,
-				 ""),
-		       BValue = ebot_util:safe_list_to_binary(Value),
-		       couchbeam_doc:set_value(
-			 BKey, 
-			 BValue,
-			 Doc)
-	       end,
-	       {Proplist},
-	       Header_keys
-	      ),
-    NewDoc2 = couchbeam_doc:set_value(
-		<<"http-returncode">>,
-		Http_returncode,
-		NewDoc),
-    save_doc(Db, NewDoc2);
-update_url_header(_Db, _Url, _) ->
-    error.
 
-update_url_body(Db, Url, Options) ->
+
+update_url(Db, Url, Options) ->
     Doc = open_doc(Db, Url),
-    update_url_doc_body(Db, Doc, Options).
+    NewDoc = update_url_doc(Doc, Options),
+    save_doc(Db, NewDoc).
 
-
-update_url_doc_body(Db, Doc, [{link_counts, LinksCount}|Options]) ->
-    NewDoc = update_doc_by_key_value(Db, Doc, <<"ebot-links-count">>, LinksCount),
-    update_url_doc_body(Db, NewDoc, Options);
-update_url_doc_body(Db, Doc, [{referral, RefUrl}|Options]) ->
+update_url_doc(Doc, [{link_counts, LinksCount}|Options]) ->
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot-links-count">>, LinksCount),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
     %% managing more than one referral: we need also a job that
     %% periodically checks referrals...
@@ -105,10 +78,37 @@ update_url_doc_body(Db, Doc, [{referral, RefUrl}|Options]) ->
 %	false ->
 %	    NewReferrals = [RefUrl|OldReferrals]
 %    end,
-    NewDoc = update_doc_by_key_value( Db, Doc, <<"ebot-url-referrals">>, RefUrl),
-    update_url_doc_body(Db, NewDoc, Options);
-update_url_doc_body(Db, Doc, []) ->
-    update_doc_timestamp_by_key(Db, Doc, <<"ebot-body-visited">>).
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot-url-referrals">>, RefUrl),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [body_timestamp|Options]) ->
+    NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot-body-visited">>),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [{head, Result}|Options]) ->
+    NewDoc = update_url_head_doc(Doc, Result),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, []) ->
+    Doc.
+
+update_url_head_doc(Doc, {error, _}) ->
+    Doc;
+update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
+    Header_keys = ebot_header_keys(),	    
+    Doc2 = lists:foldl(
+	     fun(BKey, Document) ->    
+		     Value = proplists:get_value(
+			       binary_to_list(BKey),
+			       Headers,
+			       ""),
+		     BValue = ebot_util:safe_list_to_binary(Value),
+		     couchbeam_doc:set_value(
+		       BKey, 
+		       BValue,
+		       Document)
+	     end,
+	     Doc,
+	     Header_keys
+	    ),
+    couchbeam_doc:set_value( <<"http-returncode">>, Http_returncode, Doc2).
 
 is_html_doc(Doc) ->
     Contenttype = couchbeam_doc:get_value(<<"content-type">>, Doc),
@@ -184,13 +184,12 @@ save_doc(Db, Doc) ->
 %%       end,
 %%       Keys).
 
-update_doc_timestamp_by_key(Db, Doc, Key) ->
+update_doc_timestamp_by_key(Doc, Key) ->
     Value = list_to_binary(httpd_util:rfc1123_date()),
-    update_doc_by_key_value(Db, Doc, Key, Value).
+    update_doc_by_key_value(Doc, Key, Value).
 
-update_doc_by_key_value(Db, Doc, Key, Value) ->
-    NewDoc = couchbeam_doc:set_value(Key, Value, Doc),
-    save_doc(Db, NewDoc).
+update_doc_by_key_value(Doc, Key, Value) ->
+    couchbeam_doc:set_value(Key, Value, Doc).
 
 url_doc_header_status(Doc, Options) ->
     Result = doc_date_field_status(Doc, <<"date">>, Options),
