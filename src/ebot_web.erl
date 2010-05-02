@@ -215,12 +215,15 @@ analyze_url_body(Url, State) ->
 	    lists:foreach(
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
-%%		      ebot_db:open_or_create_url(U),
+		      ebot_db:open_or_create_url(U),
+		      Options = [{referral, Url}],
+		      ebot_db:update_url_body(U, Options),
 		      ebot_memcache:add_new_url(U)
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited
-	    ebot_db:update_url_body(Url, LinksCount),
+	    Options = [{link_counts,  LinksCount}],
+	    ebot_db:update_url_body(Url, Options),
 	    Result =  ok;
 	Error ->
 	    Result = Error
