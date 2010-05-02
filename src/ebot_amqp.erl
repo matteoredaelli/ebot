@@ -25,9 +25,9 @@
 %% API
 -export([
 	 start_link/0,
-	 add_new_url/1,
+	 add_queued_url/1,
 	 add_refused_url/1,
-	 get_new_url/1
+	 get_queued_url/1
 	]).
 
 %% gen_server callbacks
@@ -51,14 +51,14 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-add_new_url(Url) ->
-    gen_server:cast(?MODULE, {add_new_url, Url}).
+add_queued_url(Url) ->
+    gen_server:cast(?MODULE, {add_queued_url, Url}).
 
 add_refused_url(Url) ->
     gen_server:cast(?MODULE, {add_refused_url, Url}).
 
-get_new_url(Depth) ->
-    gen_server:call(?MODULE, {get_new_url, Depth}).
+get_queued_url(Depth) ->
+    gen_server:call(?MODULE, {get_queued_url, Depth}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -76,8 +76,8 @@ init([]) ->
 	{ok, Config} ->
 	   case ampq_connect_and_get_channel() of
 	       {ok, {Connection, Channel}} ->
-		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
-		   amqp_setup_new_url_consumers(
+		   TotQueues = proplists:get_value(tot_queued_urls_queues, Config),
+		   amqp_setup_queued_url_consumers(
 		     Channel, TotQueues),
 		   {ok, #state{
 		      channel = Channel,
@@ -101,7 +101,7 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
-handle_call({get_new_url, Depth}, _From, State) ->
+handle_call({get_queued_url, Depth}, _From, State) ->
     Channel =  State#state.channel,
     Reply = amqp_basic_get_message(Channel, get_new_queue_name(Depth)),
     {reply, Reply, State};
@@ -116,7 +116,7 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({add_new_url, Url}, State) ->
+handle_cast({add_queued_url, Url}, State) ->
     Depth = ebot_url_util:url_depth(Url),
     Key = get_new_queue_name(Depth),
     amqp_send_message(Key, Url, State),
@@ -215,7 +215,7 @@ amqp_send_message(RoutingKey, Payload, State) ->
     end,
     Result.
  
-amqp_setup_new_url_consumers(Channel, Tot) ->
+amqp_setup_queued_url_consumers(Channel, Tot) ->
     lists:foreach(
       fun(N) ->
 	      KeyQueue =  get_new_queue_name(N),

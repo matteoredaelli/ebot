@@ -12,5 +12,5 @@
 test1() ->
     % U = <<"http://www.redaelli.org/">>,
     U = <<"http://github.com/">>,
-    ebot_memcache:add_new_url(U), 
+    ebot_memcache:add_queued_url(U), 
     ebot_web:start_crawlers().

@@ -217,7 +217,7 @@ analyze_url_body(Url, State) ->
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
 		      ebot_db:open_or_create_url(U),
-		      ebot_memcache:add_new_url(U),
+		      ebot_memcache:add_queued_url(U),
 		      Options = [{referral, Url}],
 		      ebot_db:update_url(U, Options)
 	      end,
@@ -250,7 +250,7 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
 
   
 crawl(Depth, State) ->
-    Url = ebot_amqp:get_new_url(Depth),
+    Url = ebot_amqp:get_queued_url(Depth),
     analyze_url(Url, State),
     crawl(Depth, State).
 
