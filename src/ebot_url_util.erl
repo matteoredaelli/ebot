@@ -168,12 +168,15 @@ normalize_url_using_known_regexps_replacements(Url) ->
     %% examples:
     RElist = [
     %% http://www.gettyre.it/motoweb/cart_input.action;jsessionid=250485CC578DA975CDD6099249EDD203.saetta_1
-	      {";[A-Za-z0-9]+=[^&;?]+", ""}
+	      {";[A-Za-z0-9]+=[^&;?]+", ""},
+    %% some sites have newlines in url links: see http://opensource.linux-mirror.org/index.php
+    %% TODO it still doen't work
+	      {"\n",""}
 	     ],
     ebot_util:string_replacements_using_regexps(Url, RElist).
 
 url_add_final_slash(Url) ->
-    case re:run(Url, "http://.+.+/") of
+    case re:run(Url, "http://.+/") of
 	{match, _} ->
 	    Url;
 	nomatch ->
