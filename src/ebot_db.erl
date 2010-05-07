@@ -39,8 +39,10 @@
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
+	 create_view/1,
 	 open_doc/1,
 	 open_or_create_url/1,
+	 query_view/2,
 	 update_url/2,
 	 url_status/1
 	]).
@@ -77,8 +79,12 @@ open_doc(ID) ->
     gen_server:call(?MODULE, {open_doc, ID}).
 open_or_create_url(Url) ->
     gen_server:call(?MODULE, {open_or_create_url, Url}).
+query_view({DocName, View}, Options) ->
+    gen_server:call(?MODULE, {query_view, DocName, View, Options}).
 create_url(Url) ->
     gen_server:cast(?MODULE, {create_url, Url}).
+create_view(Doc) ->
+    gen_server:cast(?MODULE, {create_view, Doc}).
 update_url(Url, Options) ->
     gen_server:call(?MODULE, {update_url, Url, Options}).
 %%====================================================================
@@ -121,7 +127,9 @@ handle_call({open_or_create_url, Url}, _From, State) ->
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
-
+handle_call({query_view, {DocName, View}, Options}, _From, State) ->
+    Reply = couchbeam_db:query_view(State#state.db, {DocName, View}, Options),
+    {reply, Reply, State};
 %% TODO
 %% TODO: no of days should be a parameter
 handle_call({url_status, Url}, _From, State) ->
@@ -152,7 +160,9 @@ handle_call(_Request, _From, State) ->
 handle_cast({create_url, Url}, State) ->
     ebot_db_util:create_url(State#state.db, Url),
     {noreply, State};
-
+handle_cast({create_view, Doc}, State) ->
+    couchbeam_db:save_doc(State#state.db, Doc),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

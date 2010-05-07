@@ -1,14 +1,2 @@
-URL=<<"http://www.redaelli.org">>.
-
-tests:
-
-ebot_web:fetch_url_head(URL).
-ebot_web:fetch_url_get(URL).
-{ok, {_Status, _Headers, Body}} = ebot_web:fetch_url_get(URL).
-ebot_html_util:get_links(Body, URL).
-ebot_html:get_links(Body, URL).
-ebot_web:fetch_url_links(URL).
-
-usage: 
- * ebot_crawler:add_todo_url_if_not_visited(URL).
- * ebot_crawler:crawl().
+USAGE: see the wiki and ebot_test.erl for details
+LICENSE: GPL v3+, see file LICENSE

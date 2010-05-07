@@ -29,18 +29,18 @@ create_url(Db, Url) ->
     Domain = ebot_url_util:url_domain(Url),
     Doc = {[
 	    {<<"_id">>, Url},
-	    {<<"http-returncode">>,0},
-	    {<<"content-length">>, 0},
-	    {<<"content-type">>, <<"">>},
+	    {<<"http_returncode">>,0},
+	    {<<"content_length">>, 0},
+	    {<<"content_type">>, <<"">>},
 	    {<<"date">>,<<"">>},
-	    {<<"keep-alive">>, <<"">>},
-	    {<<"last-modified">>, <<"">>},
+	    {<<"keep_alive">>, <<"">>},
+	    {<<"last_modified">>, <<"">>},
 	    {<<"server">>, <<"">>},
-	    {<<"ebot-body-visited">>, <<"">>},
-	    {<<"ebot-domain">>, list_to_binary(Domain)},
-	    {<<"ebot-links-count">>, 0},
-	    {<<"ebot-referrals">>, <<"">>},
-	    {<<"x-powered-by">>,<<"">>}
+	    {<<"x_powered_by">>,<<"">>},
+	    {<<"ebot_body_visited">>, <<"">>},
+	    {<<"ebot_domain">>, list_to_binary(Domain)},
+	    {<<"ebot_links_count">>, 0},
+	    {<<"ebot_referrals">>, <<"">>}
 	   ]},
     create_doc(Db, Doc, <<"url">>).
 
@@ -57,31 +57,29 @@ open_or_create_url(Db, Url) ->
 	    Doc
     end.
 
-
-
 update_url(Db, Url, Options) ->
     Doc = open_doc(Db, Url),
     NewDoc = update_url_doc(Doc, Options),
     save_doc(Db, NewDoc).
 
 update_url_doc(Doc, [{link_counts, LinksCount}|Options]) ->
-    NewDoc = update_doc_by_key_value(Doc, <<"ebot-links-count">>, LinksCount),
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot_links_count">>, LinksCount),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
     %% managing more than one referral: we need also a job that
     %% periodically checks referrals...
-    %OldReferrals =  couchbeam_doc:get_value(<<"ebot-url-referrals">>, Doc),
+    %OldReferrals =  couchbeam_doc:get_value(<<"ebot_url_referrals">>, Doc),
     %case lists:member( RefUrl, OldReferrals) of
     %true ->
     %	    NewReferrals = OldReferrals;
 %	false ->
 %	    NewReferrals = [RefUrl|OldReferrals]
 %    end,
-    NewDoc = update_doc_by_key_value(Doc, <<"ebot-url-referrals">>, RefUrl),
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot_url_referrals">>, RefUrl),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [body_timestamp|Options]) ->
-    NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot-body-visited">>),
+    NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_body_visited">>),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{head, Result}|Options]) ->
     NewDoc = update_url_head_doc(Doc, Result),
@@ -94,24 +92,25 @@ update_url_head_doc(Doc, {error, _}) ->
 update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
     Header_keys = ebot_header_keys(),	    
     Doc2 = lists:foldl(
-	     fun(BKey, Document) ->    
+	     fun(BKey, Document) ->
 		     Value = proplists:get_value(
 			       binary_to_list(BKey),
 			       Headers,
 			       ""),
+		     NewBKey = list_to_binary(re:replace(binary_to_list(BKey), "-", "_")),
 		     BValue = ebot_util:safe_list_to_binary(Value),
 		     couchbeam_doc:set_value(
-		       BKey, 
+		       NewBKey, 
 		       BValue,
 		       Document)
 	     end,
 	     Doc,
 	     Header_keys
 	    ),
-    couchbeam_doc:set_value( <<"http-returncode">>, Http_returncode, Doc2).
+    couchbeam_doc:set_value( <<"http_returncode">>, Http_returncode, Doc2).
 
 is_html_doc(Doc) ->
-    Contenttype = couchbeam_doc:get_value(<<"content-type">>, Doc),
+    Contenttype = couchbeam_doc:get_value(<<"content_type">>, Doc),
     case re:run(Contenttype, "^text/html") of
 	{match, _} ->
 	    true;
@@ -129,7 +128,7 @@ url_status(Db, Url, Options) ->
 
 create_doc(Db, Doc, Type) ->
     Defaults = [
-	       {<<"doctype">>, Type},
+	       {<<"ebot_doctype">>, Type},
 	       {<<"created_at">>, list_to_binary(httpd_util:rfc1123_date())}
 	      ],
     NewDoc = lists:foldl(
@@ -200,7 +199,7 @@ url_doc_body_status(Doc, Options) ->
 	false ->
 	    {body, skipped};
 	true ->
-	    Result = doc_date_field_status(Doc, <<"ebot-body-visited">>, Options),
+	    Result = doc_date_field_status(Doc, <<"ebot_body_visited">>, Options),
 	    {body, Result}
     end.
 
