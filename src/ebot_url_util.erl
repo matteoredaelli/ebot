@@ -68,8 +68,8 @@ normalize_url(Url, Options) when is_binary(Url) ->
 normalize_url(Url, Options) ->
     %% sometimes I have found some spaces at the end ...
     U1 = string:strip(Url,  both, $ ),
-    U2 = normalize_url_parsing_options(U1, Options),
-    U3 = normalize_url_using_known_regexps_replacements(U2),
+    U2 = normalize_url_using_known_regexps_replacements(U1),
+    U3 = normalize_url_parsing_options(U2, Options),
     U3.
 
 parse_path(Path) ->
@@ -141,6 +141,7 @@ normalize_path([E|L], {Cont,NewList}) when Cont == 0 ->
 normalize_path([], {0,NewList}) ->
     {ok,NewList};	    
 normalize_path([], {_,_}) ->
+    error_logger:info_report({?MODULE, ?LINE, {normalize_path, too_many_backs}}),
     {error, too_many_backs}.
 
 normalize_url_parsing_options(Url, [add_final_slash|Options]) ->

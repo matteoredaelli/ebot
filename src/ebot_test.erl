@@ -7,10 +7,18 @@
 %%%-------------------------------------------------------------------
 -module(ebot_test).
 
--export([test1/0]).
+-export([test/0]).
 
-test1() ->
+test() ->
+    test_oss().
+
+test_oss() ->
     % U = <<"http://www.redaelli.org/">>,
-    U = <<"http://github.com/">>,
-    ebot_memcache:add_new_url(U), 
+    ebot_memcache:add_new_url( <<"http://github.com/">> ), 
+    ebot_memcache:add_new_url( <<"http://code.google.com/">>),
+    ebot_memcache:add_new_url( <<"http://www.gitorious.org/">> ),
+    ebot_memcache:add_new_url( <<"http://www.sourceforge.net/">> ),
+    ebot_memcache:add_new_url( <<"http://www.freshmeat.net/">> ),
+    ebot_memcache:add_new_url( <<"http://www.ohloh.net/">> ),
+
     ebot_web:start_crawlers().
