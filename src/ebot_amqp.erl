@@ -188,7 +188,7 @@ amqp_basic_get_message(Channel, Queue) ->
 			    #'basic.get'{queue = Queue, no_ack = true}) of
 	 {#'basic.get_ok'{}, Content} ->
 	     #amqp_msg{payload = Payload} = Content,
-	     io:format("Payload received: queue=~p, val=~p~n", [Queue, Payload]),
+	     error_logger:info_report({?MODULE, ?LINE, {get_url, Queue, Payload}}),
 	     Payload;
 	 _Else ->
 	     empty
@@ -207,11 +207,9 @@ amqp_send_message(RoutingKey, Payload, State) ->
      },
     case Result = amqp_channel:cast(Channel, BasicPublish, _MsgPayload = Msg) of
 	ok ->
-	    io:format("amqp_send_message: ok: Key=~p, Payload=~p~n", 
-		      [RoutingKey,Payload]);
+	    error_logger:info_report({?MODULE, ?LINE, {send_url, RoutingKey, Payload}});
 	else ->
-	    io:format("amqp_send_message: failed: Key=~p, Payload=~p~n", 
-		      [RoutingKey,Payload])
+	    error_logger:info_report({?MODULE, ?LINE, {cannot_send_url, RoutingKey, Payload}})
     end,
     Result.
  

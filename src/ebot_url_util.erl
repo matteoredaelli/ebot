@@ -182,6 +182,7 @@ url_add_final_slash(Url) ->
 	{match, _} ->
 	    Url;
 	nomatch ->
+	    error_logger:info_report({?MODULE, ?LINE, {added_final_slash_to, Url}}),
 	    Url ++ "/"
     end.
 url_unparse({Domain,Folder,File,Query}) ->
