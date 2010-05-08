@@ -13,12 +13,12 @@
 
 %% API
 -export([
-	 add_queued_url/1,
+	 add_new_url/1,
 	 add_visited_url/1,
 	 info/0,
-	 is_queued_url/1,
+	 is_new_url/1,
 	 is_visited_url/1,
-	 show_queued_urls/0,
+	 show_new_urls/0,
 	 show_visited_urls/0,
 	 start_link/0,
 	 statistics/0
@@ -31,7 +31,7 @@
 -record(state, {
 	  config = [],
 	  counter = 0,
-	  queued_urls = queue:new(),
+	  new_urls = queue:new(),
 	  visited_urls = queue:new()
 	 }).
 
@@ -45,20 +45,20 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-add_queued_url(Url) ->
-    gen_server:cast(?MODULE, {add_queued_url, Url}).
+add_new_url(Url) ->
+    gen_server:cast(?MODULE, {add_new_url, Url}).
 add_visited_url(Url) ->
     gen_server:cast(?MODULE, {add_visited_url, Url}).
-is_queued_url(Url) ->
-    gen_server:call(?MODULE, {is_queued_url, Url}).
+is_new_url(Url) ->
+    gen_server:call(?MODULE, {is_new_url, Url}).
 is_visited_url(Url) ->
     gen_server:call(?MODULE, {is_visited_url, Url}).
 
 info() ->
     gen_server:call(?MODULE, {info}).
 
-show_queued_urls() ->
-    gen_server:call(?MODULE, {show_queued_urls}).
+show_new_urls() ->
+    gen_server:call(?MODULE, {show_new_urls}).
 show_visited_urls() ->
     gen_server:call(?MODULE, {show_visited_urls}).
 statistics() ->
@@ -98,8 +98,8 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------;
-handle_call({is_queued_url, Url}, _From, State) ->
-    Queue = State#state.queued_urls,
+handle_call({is_new_url, Url}, _From, State) ->
+    Queue = State#state.new_urls,
     Result = queue:member(Url, Queue),
     {reply, Result, State};
 
@@ -112,8 +112,8 @@ handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
 
-handle_call({show_queued_urls}, _From, State) ->
-    Reply = show_queue(State#state.queued_urls),
+handle_call({show_new_urls}, _From, State) ->
+    Reply = show_queue(State#state.new_urls),
     {reply, Reply, State};
 
 handle_call({show_visited_urls}, _From, State) ->
@@ -135,8 +135,8 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({add_queued_url, Url}, State) ->
-    NewState = add_queued_url(Url, State),
+handle_cast({add_new_url, Url}, State) ->
+    NewState = add_new_url(Url, State),
     {noreply, NewState};
 
 handle_cast({add_visited_url, Url}, State) ->
@@ -189,15 +189,15 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-add_queued_url(Url, State) ->
-    Queue =  State#state.queued_urls,
+add_new_url(Url, State) ->
+    Queue =  State#state.new_urls,
     case queue:member(Url, Queue) of
 	true  ->
 	    NewState = State;
 	false ->
-	    ebot_amqp:add_queued_url(Url),
+	    ebot_amqp:add_new_url(Url),
 	    NewState = State#state{
-			 queued_urls = queue:in(Url, Queue)
+			 new_urls = queue:in(Url, Queue)
 			}
     end,
     NewState.
