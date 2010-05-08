@@ -9,6 +9,9 @@
 -author("matteo.redaelli@libero.it").
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, 5000).
+
+-include_lib("eunit/include/eunit.hrl").
+
 -behaviour(gen_server).
 
 %% API

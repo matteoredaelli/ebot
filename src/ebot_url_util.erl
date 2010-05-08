@@ -10,7 +10,6 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-
 %% API
 -export([
 	 convert_to_absolute_url/2,
@@ -220,6 +219,7 @@ ebot_url_test() ->
     [
      ?assertEqual(Home, url_add_final_slash(Domain)),
 
+     ?assertEqual(Home, convert_to_absolute_url("../../", Utest)),
      ?assertEqual(Domain, url_domain(Home)),
      ?assertEqual(Domain, url_domain(Utest)),
      ?assertEqual(Domain, url_domain(Udir1)),
@@ -229,3 +229,4 @@ ebot_url_test() ->
      ?assertEqual(Udir1, url_using_max_depth(Udir1, 3)),
      ?assertEqual(Udir11, url_using_max_depth(Udir11, 4))
     ].
+
