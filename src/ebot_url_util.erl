@@ -151,6 +151,10 @@ normalize_url_parsing_options(Url, [{max_depth,MaxDepth}|Options]) ->
     NewUrl = url_using_max_depth(Url, MaxDepth),
     normalize_url_parsing_options(NewUrl, Options);
 
+normalize_url_parsing_options(Url, [to_lower_case|Options]) ->
+    NewUrl = string:to_lower(Url),
+    normalize_url_parsing_options(NewUrl, Options);
+
 normalize_url_parsing_options(Url, [without_internal_links|Options]) ->
     NewUrl = url_without_internal_links(Url),
     normalize_url_parsing_options(NewUrl, Options);
