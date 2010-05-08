@@ -15,6 +15,7 @@ test() ->
 test_oss() ->
     % U = <<"http://www.redaelli.org/">>,
     ebot_memcache:add_new_url( <<"http://github.com/">> ), 
+    ebot_memcache:add_new_url( <<"http://www.apache.org/">>),
     ebot_memcache:add_new_url( <<"http://code.google.com/">>),
     ebot_memcache:add_new_url( <<"http://www.gitorious.org/">> ),
     ebot_memcache:add_new_url( <<"http://www.sourceforge.net/">> ),

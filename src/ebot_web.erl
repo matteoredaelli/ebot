@@ -17,6 +17,7 @@
 %% API
 -export([
 	 crawl/2,
+	 fetch_url_links/1,
 	 info/0,
 	 show_active_crawlers/0,
 	 start_crawlers/0,
@@ -46,7 +47,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
 
-
+fetch_url_links(Url) ->
+    gen_server:call(?MODULE, {fetch_url_links, Url}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_active_crawlers() ->
@@ -92,6 +94,9 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
+handle_call({fetch_url_links, Url}, _From, State) ->
+    Reply = fetch_url_links(Url, State),
+    {reply, Reply, State};
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
@@ -264,7 +269,12 @@ fetch_url(URL, Command, State) ->
     Http_header = get_config(http_header, State),
     Request_options = get_config(request_options, State),
     Http_options = get_config(http_options, State),
-    ebot_web_util:fetch_url(URL, Command, Http_header,Http_options,Request_options).
+    try 
+	ebot_web_util:fetch_url(URL, Command, Http_header,Http_options,Request_options)
+    catch
+	Reason -> 
+	    {error, Reason}
+    end.
 
 fetch_url_links(URL, State) ->
     case fetch_url(URL, get, State) of

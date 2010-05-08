@@ -183,7 +183,7 @@ normalize_url_using_known_regexps_replacements(Url) ->
     ebot_util:string_replacements_using_regexps(Url, RElist).
 
 url_add_final_slash(Url) ->
-    case re:run(Url, "http://.+/") of
+    case re:run(Url, "^http://.+/") of
 	{match, _} ->
 	    Url;
 	nomatch ->
