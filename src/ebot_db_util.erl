@@ -69,14 +69,17 @@ update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
     %% managing more than one referral: we need also a job that
     %% periodically checks referrals...
-    %OldReferrals =  couchbeam_doc:get_value(<<"ebot_url_referrals">>, Doc),
-    %case lists:member( RefUrl, OldReferrals) of
-    %true ->
-    %	    NewReferrals = OldReferrals;
-%	false ->
-%	    NewReferrals = [RefUrl|OldReferrals]
-%    end,
-    NewDoc = update_doc_by_key_value(Doc, <<"ebot_url_referrals">>, RefUrl),
+    OldReferralsString = couchbeam_doc:get_value(<<"ebot_referrals">>, Doc),
+    OldReferrals = re:split(OldReferralsString, " "),
+    case lists:member( RefUrl, OldReferrals) of
+    true ->
+    	    NewReferrals = OldReferrals;
+	false ->
+	    NewReferrals = [RefUrl|OldReferrals]
+    end,
+    NewReferralsList = lists:map(fun binary_to_list/1, NewReferrals),
+    NewReferralsString = string:join(NewReferralsList, " "),
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot_referrals">>, list_to_binary(NewReferralsString)),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [body_timestamp|Options]) ->
     NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_body_visited">>),
