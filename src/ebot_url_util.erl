@@ -30,7 +30,9 @@
 %%--------------------------------------------------------------------
 	      
 convert_to_absolute_url( Url, ParentUrl) ->
-    case re:run(Url, "^http") of
+    %% does the string start with http:// or https:// ?
+    %% remember that in RE s? matches "s" or ""
+    case re:run(Url, "^https?://") of
 	{match, _L} ->
 	    Url;
 	nomatch ->
