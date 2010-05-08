@@ -40,7 +40,8 @@ create_url(Db, Url) ->
 	    {<<"ebot_body_visited">>, <<"">>},
 	    {<<"ebot_domain">>, list_to_binary(Domain)},
 	    {<<"ebot_links_count">>, 0},
-	    {<<"ebot_referrals">>, <<"">>}
+	    {<<"ebot_referrals">>, <<"">>},
+	    {<<"ebot_referrals_count">>, 0}
 	   ]},
     create_doc(Db, Doc, <<"url">>).
 
@@ -69,7 +70,9 @@ update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
     %% managing more than one referral: we need also a job that
     %% periodically checks referrals...
+    ReferralsCount = couchbeam_doc:get_value(<<"ebot_referrals_count">>, Doc),
     OldReferralsString = couchbeam_doc:get_value(<<"ebot_referrals">>, Doc),
+  
     OldReferrals = re:split(OldReferralsString, " "),
     case lists:member( RefUrl, OldReferrals) of
     true ->
@@ -80,7 +83,8 @@ update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     NewReferralsList = lists:map(fun binary_to_list/1, NewReferrals),
     NewReferralsString = string:join(NewReferralsList, " "),
     NewDoc = update_doc_by_key_value(Doc, <<"ebot_referrals">>, list_to_binary(NewReferralsString)),
-    update_url_doc(NewDoc, Options);
+    NewDoc2 = update_doc_by_key_value(NewDoc, <<"ebot_referrals_count">>, ReferralsCount + 1),
+    update_url_doc(NewDoc2, Options);
 update_url_doc(Doc, [body_timestamp|Options]) ->
     NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_body_visited">>),
     update_url_doc(NewDoc, Options);
