@@ -21,5 +21,7 @@ test_oss() ->
     ebot_memcache:add_new_url( <<"http://www.sourceforge.net/">> ),
     ebot_memcache:add_new_url( <<"http://www.freshmeat.net/">> ),
     ebot_memcache:add_new_url( <<"http://www.ohloh.net/">> ),
-
+    ebot_memcache:add_new_url( <<"http://raa.ruby-lang.org/">>),
+    ebot_memcache:add_new_url( <<"http://pypi.python.org/pypi">>),
+    ebot_memcache:add_new_url( <<"https://launchpad.net/">>),
     ebot_web:start_crawlers().

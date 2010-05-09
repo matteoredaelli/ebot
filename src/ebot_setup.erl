@@ -43,6 +43,7 @@ create_views() ->
 	     {<<"language">>,<<"javascript">>},
 	     {<<"views">>,
 	      {[
+		%% view
 		{<<"get_domain_urls">>,
 		 {[
 		   {<<"map">>,
@@ -50,6 +51,7 @@ create_views() ->
 		   }
 		  ]}
 		},
+		%% view
 		{<<"get_domains">>,
 		 {[
 		   {<<"map">>,
@@ -57,11 +59,22 @@ create_views() ->
 		   },
 		   {<<"reduce">>,
 		    <<"function(keys, values) {return sum(values); }">> 
-		    }]
 		   }
-		 }
-		]}
-	       }]},
+		  ]}
+		},
+		{<<"get_main_domains">>,
+		 {[
+		   {<<"map">>,
+		    <<"function (doc) {if (doc.ebot_doctype == \"url\") { var url = doc.ebot_domain; var protocol_domain = url.split(\"://\"); var domain = protocol_domain[1].split(\".\"); var ext = domain.pop(); var dom = domain.pop(); emit(protocol_domain[0] + \"://\" + dom + \".\" + ext, 1)}}">>
+		   },
+		   {<<"reduce">>,
+		    <<"function(keys, values) {return sum(values); }">> 
+		   }
+		  ]}
+		}
+	       %% end views
+	       ]}
+	     }]},
 	    
 		  		  
     ebot_db:create_view(Doc1).

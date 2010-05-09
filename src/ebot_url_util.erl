@@ -48,6 +48,7 @@ convert_to_absolute_url( Url, ParentUrl) ->
 is_valid_url_using_all_known_invalid_regexps(Url) ->
     RElist = [
 	      {nomatch, "feed:"},
+	      {nomatch, "ftp:"},
 	      {nomatch, "javascript:"},
 	      {nomatch, "mailto:"},
 	      {nomatch, "news:"}

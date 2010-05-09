@@ -79,7 +79,13 @@ init([]) ->
 	    State = #state{config=Config},
 	    Options = get_config(request_options, State),
 	    http:set_options(Options),
-	    {ok, State};
+	    case get_config(start_crawlers_at_boot, State) of
+		true ->
+		    NewState = start_crawlers(State);
+		false ->
+		    NewState = State
+	    end,
+	    {ok, NewState};
 	_Else ->
 	    {error, cannot_load_configuration}
     end.
@@ -132,17 +138,7 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 
 handle_cast({start_crawlers}, State) ->
-    Pools = get_config(crawler_pools, State),
-    NewCrawlers = lists:foldl(
-      fun({Depth,Tot}, Crawlers) ->
-	      OtherCrawlers = start_crawlers(Depth, Tot, State),
-	      lists:append( Crawlers, OtherCrawlers)
-      end,
-      State#state.active_crawlers,
-      Pools), 
-    NewState = State#state{
-		 active_crawlers = NewCrawlers
-		},
+    NewState = start_crawlers(State),
     {noreply, NewState};
 
 handle_cast(_Msg, State) ->
@@ -296,6 +292,20 @@ is_valid_url(Url, State) ->
 	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
 	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
 	    
+start_crawlers(State) ->
+    Pools = get_config(crawler_pools, State),
+    NewCrawlers = lists:foldl(
+		    fun({Depth,Tot}, Crawlers) ->
+			    OtherCrawlers = start_crawlers(Depth, Tot, State),
+			    lists:append( Crawlers, OtherCrawlers)
+		    end,
+		    State#state.active_crawlers,
+		    Pools), 
+    NewState = State#state{
+		 active_crawlers = NewCrawlers
+		},
+    NewState.
+
 start_crawlers(Depth, Total, State) -> 
     lists:map(
       fun(_) ->
