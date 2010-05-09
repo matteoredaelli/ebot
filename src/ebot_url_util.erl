@@ -49,7 +49,8 @@ is_valid_url_using_all_known_invalid_regexps(Url) ->
     RElist = [
 	      {nomatch, "feed:"},
 	      {nomatch, "javascript:"},
-	      {nomatch, "mailto:"}
+	      {nomatch, "mailto:"},
+	      {nomatch, "news:"}
 	     ],
     ebot_util:is_valid_using_all_regexps(Url, RElist).
 
