@@ -70,9 +70,8 @@ normalize_url(Url, Options) when is_binary(Url) ->
 normalize_url(Url, Options) ->
     %% sometimes I have found some spaces at the end ...
     U1 = string:strip(Url,  both, $ ),
-    U2 = normalize_url_using_known_regexps_replacements(U1),
-    U3 = normalize_url_parsing_options(U2, Options),
-    U3.
+    U2 = normalize_url_parsing_options(U1, Options),
+    U2.
 
 parse_path(Path) ->
     Sep = string:rstr(Path,"/"),
@@ -146,6 +145,10 @@ normalize_path([], {_,_}) ->
     error_logger:info_report({?MODULE, ?LINE, {normalize_path, too_many_backs}}),
     {error, too_many_backs}.
 
+normalize_url_parsing_options(Url, [{replace_string, RElist}|Options]) ->
+    NewUrl = ebot_util:string_replacements_using_regexps(Url, RElist),
+    normalize_url_parsing_options(NewUrl, Options);
+
 normalize_url_parsing_options(Url, [add_final_slash|Options]) ->
     NewUrl = url_add_final_slash(Url),
     normalize_url_parsing_options(NewUrl, Options);
@@ -172,17 +175,6 @@ normalize_url_parsing_options(Url, [Opt|Options]) ->
     normalize_url_parsing_options(Url, Options);
 normalize_url_parsing_options(Url, []) ->
     Url.
-
-normalize_url_using_known_regexps_replacements(Url) ->
-    %% examples:
-    RElist = [
-    %% http://www.gettyre.it/motoweb/cart_input.action;jsessionid=250485CC578DA975CDD6099249EDD203.saetta_1
-	      {";[A-Za-z0-9]+=[^&;?]+", ""},
-    %% some sites have newlines in url links: see http://opensource.linux-mirror.org/index.php
-    %% TODO it still doen't work
-	      {"\n",""}
-	     ],
-    ebot_util:string_replacements_using_regexps(Url, RElist).
 
 url_add_final_slash(Url) ->
     case re:run(Url, "^http://.+/") of
