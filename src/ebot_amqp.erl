@@ -87,7 +87,8 @@ init([]) ->
 	       _Else ->
 		   {error, amqp_cannot_connect_or_get_channel}
 	   end;
-	_Else ->
+	Else ->
+	   error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
     end.
 
@@ -235,9 +236,7 @@ amqp_setup_consumer(Channel, Q, X, Key) ->
                         consumer_count = ConsumerCount}
 	= amqp_channel:call(Channel, QueueDeclare),
     
-    log(queue,Q),
-    log(message_count,MessageCount),
-    log(consumer_count,ConsumerCount),
+    log(queue,{Q, {message_count,MessageCount}, {consumer_count,ConsumerCount}}),
 
     QueueBind = #'queue.bind'{queue = Q,
                               exchange = X,
@@ -245,6 +244,7 @@ amqp_setup_consumer(Channel, Q, X, Key) ->
     #'queue.bind_ok'{} = amqp_channel:call(Channel, QueueBind).
 
 log(Key,Value) ->
+    error_logger:warning_report({?MODULE, ?LINE, {Key,Value }}),
     io:format("~p: ~p~n",[Key,Value]).
 
 get_new_queue_name(Depth) ->

@@ -55,7 +55,7 @@ load_settings(Module) ->
     File = filename:join([
 			  filename:dirname(code:which(?MODULE)),
 			  "..", "priv", atom_to_list(Module) ++ ".conf"]),
-    io:format("REading config file ~s", [File]),
+    error_logger:warning_report({?MODULE, ?LINE, {opening_configuration_file, File}}),
     file:consult(File).
 
 remove_duplicates(L) ->

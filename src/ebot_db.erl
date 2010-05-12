@@ -105,7 +105,8 @@ init([]) ->
 	    Ebotdb = couchbeam_server:open_db(default, "ebot"),
 	    State = #state{config=Config, db=Ebotdb},
 	    {ok, State};
-	_Else ->
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
     end.
 

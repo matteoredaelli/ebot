@@ -85,7 +85,8 @@ init([]) ->
     case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
 	    {ok, #state{config=Config}};
-	_Else ->
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
     end.
 

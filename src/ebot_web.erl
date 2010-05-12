@@ -86,7 +86,8 @@ init([]) ->
 		    NewState = State
 	    end,
 	    {ok, NewState};
-	_Else ->
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
     end.
 
@@ -190,10 +191,12 @@ analyze_url_header(Url, State) ->
     end.
 
 analyze_url_body(Url, State) ->
+    error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
     case fetch_url_links(Url, State) of
 	{ok, Links} ->
 	    LinksCount = length(Links),
 	    %% normalizing Links
+	    error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
 	    NormalizeOptions = get_config(normalize_url, State),
 	    NormalizedLinks = lists:map(
 				fun(U) -> 
@@ -220,6 +223,7 @@ analyze_url_body(Url, State) ->
 	    lists:foreach(
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
+		      error_logger:info_report({?MODULE, ?LINE, {adding, U, from, Url}}),
 		      ebot_db:open_or_create_url(U),
 		      ebot_memcache:add_new_url(U),
 		      Options = [{referral, Url}],
@@ -261,21 +265,23 @@ crawl(Depth, State) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-fetch_url(URL, Command, State) ->
+fetch_url(Url, Command, State) ->
     Http_header = get_config(http_header, State),
     Request_options = get_config(request_options, State),
     Http_options = get_config(http_options, State),
+    error_logger:info_report({?MODULE, ?LINE, {fetching_url, Command, Url}}),
     try 
-	ebot_web_util:fetch_url(URL, Command, Http_header,Http_options,Request_options)
+	ebot_web_util:fetch_url(Url, Command, Http_header,Http_options,Request_options)
     catch
 	Reason -> 
 	    {error, Reason}
     end.
 
-fetch_url_links(URL, State) ->
-    case fetch_url(URL, get, State) of
+fetch_url_links(Url, State) ->
+    case fetch_url(Url, get, State) of
 	{ok, {_Status, _Headers, Body}} ->
-	    {ok, ebot_html_util:get_links(Body, URL)};
+	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
+	    {ok, ebot_html_util:get_links(Body, Url)};
 	{error, Reason} ->
 	    io:format("Error: ~s", [atom_to_list(Reason)]),
 	    {error, Reason}
