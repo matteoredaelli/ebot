@@ -44,7 +44,7 @@
 	 open_or_create_url/1,
 	 query_view/2,
 	 update_url/2,
-	 url_status/1
+	 url_status/2
 	]).
 
 %% gen_server callbacks
@@ -71,8 +71,8 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 info() ->
     gen_server:call(?MODULE, {info}).
-url_status(Url) ->
-    gen_server:call(?MODULE, {url_status, Url}).
+url_status(Url, Days) ->
+    gen_server:call(?MODULE, {url_status, Url, Days}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
 open_doc(ID) ->
@@ -131,10 +131,8 @@ handle_call({info}, _From, State) ->
 handle_call({query_view, {DocName, View}, Options}, _From, State) ->
     Reply = couchbeam_db:query_view(State#state.db, {DocName, View}, Options),
     {reply, Reply, State};
-%% TODO
-%% TODO: no of days should be a parameter
-handle_call({url_status, Url}, _From, State) ->
-    Reply = ebot_db_util:url_status(State#state.db, Url, 1),
+handle_call({url_status, Url, Days}, _From, State) ->
+    Reply = ebot_db_util:url_status(State#state.db, Url, Days),
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->

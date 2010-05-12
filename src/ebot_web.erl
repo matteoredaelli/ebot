@@ -178,7 +178,8 @@ code_change(_OldVsn, State, _Extra) ->
 analyze_url(empty, _State) ->
     {ok, empty};
 analyze_url(Url, State) ->
-    analyze_url_from_url_status(Url, ebot_db:url_status(Url), State).
+    Days = get_config(obsolete_urls_after_days, State),
+    analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days), State).
 
 analyze_url_header(Url, State) ->
     case Result = fetch_url(Url, head, State) of
