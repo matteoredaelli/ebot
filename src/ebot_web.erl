@@ -184,12 +184,16 @@ analyze_url(Url, State) ->
 analyze_url_header(Url, State) ->
     case Result = fetch_url(Url, head, State) of
 	{error, Reason} -> 
+	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
+	    Options = [ebot_errors_count],
+	    ebot_amqp:add_refused_url(Url),
 	    {error, Reason};
 	Result ->
-	    Options = [{head, Result}, ebot_visits_count],
-	    ebot_db:update_url(Url, Options),
-	    ebot_memcache:add_visited_url(Url)
-    end.
+	    Options = [{head, Result}, ebot_visits_count]
+    end,
+    ebot_db:update_url(Url, Options),
+    ebot_memcache:add_visited_url(Url),
+    Result.
 
 analyze_url_body(Url, State) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
@@ -242,11 +246,17 @@ analyze_url_body(Url, State) ->
 
 analyze_url_from_url_status(Url, not_found, State) ->
     ebot_db:open_or_create_url(Url),
-    analyze_url_header(Url, State),
-    %% not sure if the url is html or not and so coming back 
-    %% to check url_status
-    %% ATTENTION !!! this can generate a loop: needs to check if error return from analyze_url_header
-    analyze_url(Url, State);
+    case analyze_url_header(Url, State) of
+	{error, Reason} ->
+	    {error, Reason};
+	ok ->
+	    %% not sure if the url is html or not and so coming back 
+	    %% to check url_status
+	    analyze_url(Url, State);
+	Other ->
+	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, error, Other}}),
+	    Other
+    end;
 analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, State) ->
     analyze_url_body(Url, State);
 analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, State) ->
@@ -258,7 +268,6 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
     analyze_url_header(Url, State),
     analyze_url(Url, State).
 
-  
 crawl(Depth, State) ->
     Url = ebot_amqp:get_new_url(Depth),
     analyze_url(Url, State),
@@ -271,11 +280,12 @@ fetch_url(Url, Command, State) ->
     Http_header = get_config(http_header, State),
     Request_options = get_config(request_options, State),
     Http_options = get_config(http_options, State),
-    error_logger:info_report({?MODULE, ?LINE, {fetching_url, Command, Url}}),
+    error_logger:info_report({?MODULE, ?LINE, {fetch_url, Command, Url}}),
     try 
 	ebot_web_util:fetch_url(Url, Command, Http_header,Http_options,Request_options)
     catch
 	Reason -> 
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, cannot_fetch_url, Reason}}),
 	    {error, Reason}
     end.
 
@@ -285,8 +295,12 @@ fetch_url_links(Url, State) ->
 	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
 	    {ok, ebot_html_util:get_links(Body, Url)};
 	{error, Reason} ->
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
 	    io:format("Error: ~s", [atom_to_list(Reason)]),
-	    {error, Reason}
+	    {error, Reason};
+	Other ->
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, unknown_error, Other}}),
+	    Other
     end.
 
 is_valid_url(Url, State) when is_binary(Url) ->

@@ -12,6 +12,7 @@
 -define(SERVER, ?MODULE).
 -define(EBOT_EXCHANGE, <<"EBOT">>).
 -define(EBOT_QUEUE_URL_NEW, <<"EBOT_QUEUE_URL_NEW">>).
+-define(EBOT_QUEUE_URL_REFUSED, <<"EBOT_QUEUE_URL_REFUSED">>).
 -define(EBOT_KEY_URL_NEW, <<"ebot.url.new">>).
 -define(EBOT_KEY_URL_PROCESSED, <<"ebot.url.processed">>).
 -define(EBOT_KEY_URL_REFUSED, <<"ebot.url.refused">>).
@@ -77,8 +78,8 @@ init([]) ->
 	   case ampq_connect_and_get_channel() of
 	       {ok, {Connection, Channel}} ->
 		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
-		   amqp_setup_new_url_consumers(
-		     Channel, TotQueues),
+		   amqp_setup_new_url_consumers(Channel, TotQueues),
+		   amqp_setup_refused_consumer(Channel),
 		   {ok, #state{
 		      channel = Channel,
 		      connection = Connection,
@@ -213,18 +214,26 @@ amqp_send_message(RoutingKey, Payload, State) ->
 	    error_logger:info_report({?MODULE, ?LINE, {cannot_send_url, RoutingKey, Payload}})
     end,
     Result.
- 
+
 amqp_setup_new_url_consumers(Channel, Tot) ->
     lists:foreach(
       fun(N) ->
-	      KeyQueue =  get_new_queue_name(N),
+	      KeyQueue = get_new_queue_name(N),
 	      amqp_setup_consumer(
-		  Channel,
-		  KeyQueue,
-		  ?EBOT_EXCHANGE,
-		  KeyQueue
-		 ) end,
+		Channel,
+		KeyQueue,
+		?EBOT_EXCHANGE,
+		KeyQueue
+	       ) end,
       lists:seq(0, Tot)
+     ).
+
+amqp_setup_refused_consumer(Channel) ->
+    amqp_setup_consumer(
+      Channel,
+      ?EBOT_KEY_URL_REFUSED,
+      ?EBOT_EXCHANGE,
+      ?EBOT_KEY_URL_REFUSED
      ).
 
 amqp_setup_consumer(Channel, Q, X, Key) ->

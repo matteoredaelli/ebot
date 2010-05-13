@@ -39,6 +39,7 @@ create_url(Db, Url) ->
 	    {<<"x_powered_by">>,<<"">>},
 	    {<<"ebot_body_visited">>, <<"">>},
 	    {<<"ebot_domain">>, list_to_binary(Domain)},
+	    {<<"ebot_errors_count">>, 0},
 	    {<<"ebot_links_count">>, 0},
 	    {<<"ebot_referrals">>, <<"">>},
 	    {<<"ebot_referrals_count">>, 0},
@@ -91,6 +92,9 @@ update_url_doc(Doc, [body_timestamp|Options]) ->
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{head, Result}|Options]) ->
     NewDoc = update_url_head_doc(Doc, Result),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [ebot_errors_count|Options]) ->
+    NewDoc = update_doc_increase_counter(Doc, <<"ebot_errors_count">>),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [ebot_visits_count|Options]) ->
     NewDoc = update_doc_increase_counter(Doc, <<"ebot_visits_count">>),
@@ -224,5 +228,3 @@ url_doc_status(Doc, Options) ->
     HeaderStatus = url_doc_header_status(Doc, Options),
     BodyStatus = url_doc_body_status(Doc, Options),
     {ok, HeaderStatus, BodyStatus}.
-
-    
