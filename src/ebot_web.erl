@@ -249,7 +249,7 @@ analyze_url_from_url_status(Url, not_found, State) ->
     case analyze_url_header(Url, State) of
 	{error, Reason} ->
 	    {error, Reason};
-	ok ->
+	{ok, _} ->
 	    %% not sure if the url is html or not and so coming back 
 	    %% to check url_status
 	    analyze_url(Url, State);
