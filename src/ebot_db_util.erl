@@ -41,7 +41,8 @@ create_url(Db, Url) ->
 	    {<<"ebot_domain">>, list_to_binary(Domain)},
 	    {<<"ebot_links_count">>, 0},
 	    {<<"ebot_referrals">>, <<"">>},
-	    {<<"ebot_referrals_count">>, 0}
+	    {<<"ebot_referrals_count">>, 0},
+	    {<<"ebot_visits_count">>, 0}
 	   ]},
     create_doc(Db, Doc, <<"url">>).
 
@@ -90,6 +91,9 @@ update_url_doc(Doc, [body_timestamp|Options]) ->
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{head, Result}|Options]) ->
     NewDoc = update_url_head_doc(Doc, Result),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [ebot_visits_count|Options]) ->
+    NewDoc = update_doc_increase_counter(Doc, <<"ebot_visits_count">>),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, []) ->
     Doc.
@@ -189,6 +193,10 @@ save_doc(Db, Doc) ->
 %% 	      end
 %%       end,
 %%       Keys).
+
+update_doc_increase_counter(Doc, Key) ->
+    Value = couchbeam_doc:get_value(Key, Doc),
+    update_doc_by_key_value(Doc, Key, Value + 1).
 
 update_doc_timestamp_by_key(Doc, Key) ->
     Value = list_to_binary(httpd_util:rfc1123_date()),

@@ -186,7 +186,7 @@ analyze_url_header(Url, State) ->
 	{error, Reason} -> 
 	    {error, Reason};
 	Result ->
-	    Options = [{head, Result}],
+	    Options = [{head, Result}, ebot_visits_count],
 	    ebot_db:update_url(Url, Options),
 	    ebot_memcache:add_visited_url(Url)
     end.
@@ -243,8 +243,9 @@ analyze_url_body(Url, State) ->
 analyze_url_from_url_status(Url, not_found, State) ->
     ebot_db:open_or_create_url(Url),
     analyze_url_header(Url, State),
-    %% not suse if teh url is html or not and so coming back 
+    %% not sure if the url is html or not and so coming back 
     %% to check url_status
+    %% ATTENTION !!! this can generate a loop: needs to check if error return from analyze_url_header
     analyze_url(Url, State);
 analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, State) ->
     analyze_url_body(Url, State);
