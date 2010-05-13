@@ -93,10 +93,13 @@ update_url_doc(Doc, [body_timestamp|Options]) ->
 update_url_doc(Doc, [{head, Result}|Options]) ->
     NewDoc = update_url_head_doc(Doc, Result),
     update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [ebot_errors_count|Options]) ->
+update_url_doc(Doc, [errors_count|Options]) ->
     NewDoc = update_doc_increase_counter(Doc, <<"ebot_errors_count">>),
     update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [ebot_visits_count|Options]) ->
+update_url_doc(Doc, [reset_errors_count|Options]) ->
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot_errors_count">>, 0),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [visits_count|Options]) ->
     NewDoc = update_doc_increase_counter(Doc, <<"ebot_visits_count">>),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, []) ->

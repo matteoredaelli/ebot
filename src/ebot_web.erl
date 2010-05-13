@@ -185,11 +185,11 @@ analyze_url_header(Url, State) ->
     case Result = fetch_url(Url, head, State) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
-	    Options = [ebot_errors_count],
+	    Options = [errors_count],
 	    ebot_amqp:add_refused_url(Url),
 	    {error, Reason};
 	Result ->
-	    Options = [{head, Result}, ebot_visits_count]
+	    Options = [{head, Result}, visits_count, reset_errors_count]
     end,
     ebot_db:update_url(Url, Options),
     ebot_memcache:add_visited_url(Url),
