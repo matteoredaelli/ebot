@@ -17,6 +17,7 @@
 %% API
 -export([
 	 crawl/2,
+	 crawlers_status/0,
 	 fetch_url/2,
 	 fetch_url_links/1,
 	 info/0,
@@ -48,6 +49,8 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
+crawlers_status() ->
+    gen_server:call(?MODULE, {crawlers_status}).
 fetch_url(Url, Command) ->
     gen_server:call(?MODULE, {fetch_url, Url, Command}).
 fetch_url_links(Url) ->
@@ -83,11 +86,13 @@ init([]) ->
 	    http:set_options(Options),
 	    case get_config(start_crawlers_at_boot, State) of
 		true ->
+		    Crawlers_status = started,
 		    NewState = start_crawlers(State);
 		false ->
+		    Crawlers_status = stopped,
 		    NewState = State
 	    end,
-	    {ok, NewState};
+	    {ok, NewState#state{crawlers_status = Crawlers_status}};
 	Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
@@ -102,7 +107,8 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
-
+handle_call({crawlers_status}, _From, State) ->
+    {reply, State#state.crawlers_status, State};
 handle_call({fetch_url, Url, Command}, _From, State) ->
     Reply = fetch_url(Url, Command, State),
     {reply, Reply, State};
@@ -283,7 +289,7 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
 crawl(Depth, State) ->
     Url = ebot_amqp:get_new_url(Depth),
     analyze_url(Url, State),
-    case State#state.crawlers_status of
+    case ebot_web:crawlers_status() of
 	started ->
 	    timer:sleep( get_config(crawlers_sleep_time, State) ),
 	    crawl(Depth, State);
