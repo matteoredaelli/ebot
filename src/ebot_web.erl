@@ -17,6 +17,7 @@
 %% API
 -export([
 	 crawl/2,
+	 fetch_url/2,
 	 fetch_url_links/1,
 	 info/0,
 	 show_crawlers_list/0,
@@ -47,7 +48,8 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
-
+fetch_url(Url, Command) ->
+    gen_server:call(?MODULE, {fetch_url, Url, Command}).
 fetch_url_links(Url) ->
     gen_server:call(?MODULE, {fetch_url_links, Url}).
 info() ->
@@ -101,6 +103,9 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
+handle_call({fetch_url, Url, Command}, _From, State) ->
+    Reply = fetch_url(Url, Command, State),
+    {reply, Reply, State};
 handle_call({fetch_url_links, Url}, _From, State) ->
     Reply = fetch_url_links(Url, State),
     {reply, Reply, State};
@@ -254,6 +259,15 @@ analyze_url_body(Url, State) ->
 
 analyze_url_from_url_status(Url, not_found, State) ->
     ebot_db:open_or_create_url(Url),
+    analyze_url(Url, State);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, State) ->
+    analyze_url_body(Url, State);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, State) ->
+    analyze_url_body(Url, State);
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _State) ->
+    %% skipped od updated
+    ok;
+analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State) ->
     case analyze_url_header(Url, State) of
 	{error, Reason} ->
 	    {error, Reason};
@@ -264,17 +278,7 @@ analyze_url_from_url_status(Url, not_found, State) ->
 	Other ->
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, error, Other}}),
 	    Other
-    end;
-analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, State) ->
-    analyze_url_body(Url, State);
-analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, State) ->
-    analyze_url_body(Url, State);
-analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _State) ->
-    %% skipped od updated
-    ok;
-analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State) ->
-    analyze_url_header(Url, State),
-    analyze_url(Url, State).
+    end.
 
 crawl(Depth, State) ->
     Url = ebot_amqp:get_new_url(Depth),
