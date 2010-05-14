@@ -38,6 +38,7 @@ create_url(Db, Url) ->
 	    {<<"server">>, <<"">>},
 	    {<<"x_powered_by">>,<<"">>},
 	    {<<"ebot_body_visited">>, <<"">>},
+	    {<<"ebot_head_visited">>, <<"">>},
 	    {<<"ebot_domain">>, list_to_binary(Domain)},
 	    {<<"ebot_errors_count">>, 0},
 	    {<<"ebot_links_count">>, 0},
@@ -89,6 +90,9 @@ update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     update_url_doc(NewDoc2, Options);
 update_url_doc(Doc, [body_timestamp|Options]) ->
     NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_body_visited">>),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [head_timestamp|Options]) ->
+    NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_head_visited">>),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{head, Result}|Options]) ->
     NewDoc = update_url_head_doc(Doc, Result),
@@ -213,7 +217,7 @@ update_doc_by_key_value(Doc, Key, Value) ->
     couchbeam_doc:set_value(Key, Value, Doc).
 
 url_doc_header_status(Doc, Options) ->
-    Result = doc_date_field_status(Doc, <<"date">>, Options),
+    Result = doc_date_field_status(Doc, <<"ebot_head_visited">>, Options),
     {header, Result}.
 
 url_doc_body_status(Doc, Options) ->

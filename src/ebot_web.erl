@@ -209,7 +209,7 @@ analyze_url_header(Url, State) ->
 	    ebot_amqp:add_refused_url(Url),
 	    {error, Reason};
 	Result ->
-	    Options = [{head, Result}, visits_count, reset_errors_count]
+	    Options = [{head, Result}, head_timestamp, visits_count, reset_errors_count]
     end,
     ebot_db:update_url(Url, Options),
     Result.
