@@ -19,11 +19,12 @@
 	 crawl/2,
 	 fetch_url_links/1,
 	 info/0,
-	 show_active_crawlers/0,
+	 show_crawlers_list/0,
 	 start_crawlers/0,
 	 start_link/0,
 	 statistics/0,
-	 stop_crawler/1
+	 stop_crawler/1,
+	 stop_crawlers/0
 	]).
 
 %% gen_server callbacks
@@ -32,8 +33,8 @@
 
 -record(state,{
 	  config=[], 
-	  status = started,
-	  active_crawlers = [],
+	  crawlers_status = started,  %% or stopped
+	  crawlers_list = [],
 	  good=0, bad=0
 	 }).
 
@@ -51,17 +52,16 @@ fetch_url_links(Url) ->
     gen_server:call(?MODULE, {fetch_url_links, Url}).
 info() ->
     gen_server:call(?MODULE, {info}).
-show_active_crawlers() ->
-    gen_server:call(?MODULE, {show_active_crawlers}).
+show_crawlers_list() ->
+    gen_server:call(?MODULE, {show_crawlers_list}).
 start_crawlers() ->
     gen_server:cast(?MODULE, {start_crawlers}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
-
-
 stop_crawler(Crawler) ->
     gen_server:call(?MODULE, {stop_crawler, Crawler}).
-
+stop_crawlers() ->
+    gen_server:call(?MODULE, {stop_crawlers}).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -115,18 +115,24 @@ handle_call({statistics}, _From, State) ->
     NewState = State,
     {reply, Reply, NewState};
 
-handle_call({show_active_crawlers}, _From, State) ->
-    Reply = State#state.active_crawlers,
+handle_call({show_crawlers_list}, _From, State) ->
+    Reply = State#state.crawlers_list,
     {reply, Reply, State};
 
 handle_call({stop_crawler, {Depth,Pid}}, _From, State) ->
     Reply = ok,
     NewState = State#state{
-		 active_crawlers = lists:delete({Depth,Pid}, 
-						State#state.active_crawlers)
+		 crawlers_list = lists:delete({Depth,Pid}, 
+						State#state.crawlers_list)
 		},
     {reply, Reply, NewState};
 
+handle_call({stop_crawlers}, _From, State) ->
+    error_logger:warning_report({?MODULE, ?LINE, {stop_crawlers, invoked}}),
+    NewState = State#state{
+		 crawlers_status = stopped
+		},
+    {reply, ok, NewState};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -182,17 +188,19 @@ analyze_url(Url, State) ->
     analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days), State).
 
 analyze_url_header(Url, State) ->
+    ebot_memcache:add_visited_url(Url),
     case Result = fetch_url(Url, head, State) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
 	    Options = [errors_count],
+	    %% TODO: instead of only Url, it would be nice to send {Url, Reason}
+	    %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
 	    ebot_amqp:add_refused_url(Url),
 	    {error, Reason};
 	Result ->
 	    Options = [{head, Result}, visits_count, reset_errors_count]
     end,
     ebot_db:update_url(Url, Options),
-    ebot_memcache:add_visited_url(Url),
     Result.
 
 analyze_url_body(Url, State) ->
@@ -271,7 +279,14 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
 crawl(Depth, State) ->
     Url = ebot_amqp:get_new_url(Depth),
     analyze_url(Url, State),
-    crawl(Depth, State).
+    case State#state.crawlers_status of
+	started ->
+	    timer:sleep( get_config(crawlers_sleep_time, State) ),
+	    crawl(Depth, State);
+	stopped ->
+	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
+	    stop_crawler( {Depth, self()} )
+    end.
 
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
@@ -296,7 +311,6 @@ fetch_url_links(Url, State) ->
 	    {ok, ebot_html_util:get_links(Body, Url)};
 	{error, Reason} ->
 	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
-	    io:format("Error: ~s", [atom_to_list(Reason)]),
 	    {error, Reason};
 	Other ->
 	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, unknown_error, Other}}),
@@ -321,10 +335,11 @@ start_crawlers(State) ->
 			    OtherCrawlers = start_crawlers(Depth, Tot, State),
 			    lists:append( Crawlers, OtherCrawlers)
 		    end,
-		    State#state.active_crawlers,
+		    State#state.crawlers_list,
 		    Pools), 
     NewState = State#state{
-		 active_crawlers = NewCrawlers
+		 crawlers_list = NewCrawlers,
+		 crawlers_status = started
 		},
     NewState.
 
