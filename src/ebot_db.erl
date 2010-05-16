@@ -36,6 +36,7 @@
 %% API
 -export([
 	 info/0,
+	 info_db/0,
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
@@ -71,6 +72,8 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 info() ->
     gen_server:call(?MODULE, {info}).
+info_db() ->
+    gen_server:call(?MODULE, {info_db}).
 url_status(Url, Days) ->
     gen_server:call(?MODULE, {url_status, Url, Days}).
 statistics() ->
@@ -128,6 +131,9 @@ handle_call({open_or_create_url, Url}, _From, State) ->
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
+handle_call({info_db}, _From, State) ->
+    Reply = couchbeam_db:info(State#state.db),
+    {reply, Reply, State};
 handle_call({query_view, {DocName, View}, Options}, _From, State) ->
     Reply = couchbeam_db:query_view(State#state.db, {DocName, View}, Options),
     {reply, Reply, State};
@@ -136,11 +142,11 @@ handle_call({url_status, Url, Days}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
-    Reply = atom_to_list(?MODULE) ++ 
-	": good=" ++ integer_to_list(State#state.good) ++
-	", bad="  ++ integer_to_list(State#state.bad),
-    NewState = State,
-    {reply, Reply, NewState};
+    Doc = couchbeam_db:info(State#state.db),
+    DiskSize = round(proplists:get_value(<<"disk_size">>, Doc) / 1024 / 1024),
+    DocCount = proplists:get_value(<<"doc_count">>, Doc),
+    Reply = [{<<"disk_size">>, DiskSize}, {<<"doc_count">>,DocCount}],
+    {reply, Reply, State};
 
 handle_call({update_url, Url, Options}, _From, State) ->
     Reply = ebot_db_util:update_url(State#state.db, Url, Options),

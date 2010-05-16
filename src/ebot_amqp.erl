@@ -28,7 +28,8 @@
 	 start_link/0,
 	 add_new_url/1,
 	 add_refused_url/1,
-	 get_new_url/1
+	 get_new_url/1,
+	 statistics/0
 	]).
 
 %% gen_server callbacks
@@ -60,6 +61,9 @@ add_refused_url(Url) ->
 
 get_new_url(Depth) ->
     gen_server:call(?MODULE, {get_new_url, Depth}).
+
+statistics() ->
+    gen_server:call(?MODULE, {statistics}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -106,6 +110,18 @@ init([]) ->
 handle_call({get_new_url, Depth}, _From, State) ->
     Channel =  State#state.channel,
     Reply = amqp_basic_get_message(Channel, get_new_queue_name(Depth)),
+    {reply, Reply, State};
+
+handle_call({statistics}, _From, State) ->
+    Channel =  State#state.channel,
+    Tot = get_config(tot_new_urls_queues, State),
+    Reply = lists:map(
+	       fun(N) -> 
+		       Q = get_new_queue_name(N), 
+		       queue_statistics(Channel, Q)
+	       end,
+	      lists:seq(0, Tot)
+	     ),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
@@ -235,6 +251,14 @@ amqp_setup_refused_consumer(Channel) ->
       ?EBOT_EXCHANGE,
       ?EBOT_KEY_URL_REFUSED
      ).
+
+queue_statistics(Channel, Q) ->
+    QueueDeclare = #'queue.declare'{queue=Q},
+    #'queue.declare_ok'{queue = Q,
+                        message_count = MessageCount,
+                        consumer_count = _ConsumerCount}
+	= amqp_channel:call(Channel, QueueDeclare),
+    {Q, MessageCount}.
 
 amqp_setup_consumer(Channel, Q, X, Key) ->
     QueueDeclare = #'queue.declare'{queue=Q

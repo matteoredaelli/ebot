@@ -1,6 +1,7 @@
 *~
 *.dump
 *.log
+*.rrd
 deps/*
 ebin/*
 priv/log/*
