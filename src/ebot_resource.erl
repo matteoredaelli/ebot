@@ -39,7 +39,7 @@ command_stats([Command|_Tokens]) ->
     	"update_rrd" ->
 	    Path = filename:join(
                          [filename:dirname(code:which(?MODULE)),
-                          "..", "utils"]),
+                          "..", "priv", "data"]),
     	    Result = ebot_stats:update_rrd_statistics(Path);
     	_ ->
     	    Result = command_stats([])

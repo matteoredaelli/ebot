@@ -5,4 +5,5 @@
 deps/*
 ebin/*
 priv/log/*
+priv/www/*.png
 .autosave

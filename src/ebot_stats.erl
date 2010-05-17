@@ -60,4 +60,5 @@ stats_to_rrd(Stats, File) ->
 	       Stats
 	      ),
     Command = ?RRDUPDATE ++ " " ++ File ++ " N:"++ string:join( Values, ":"),
+    error_logger:info_report({?MODULE, ?LINE, {executing,Command}}),
     os:cmd(Command).
