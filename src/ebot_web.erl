@@ -120,9 +120,7 @@ handle_call({info}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
-    Reply = atom_to_list(?MODULE) ++ 
-	": good=" ++ integer_to_list(State#state.good) ++
-	", bad="  ++ integer_to_list(State#state.bad),
+    Reply =
     NewState = State,
     {reply, Reply, NewState};
 

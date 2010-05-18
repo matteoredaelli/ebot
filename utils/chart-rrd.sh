@@ -2,7 +2,7 @@
 
 width=1000
 height=800
-step=600
+step=300
 #step=172800
 #step=28800
 
