@@ -36,7 +36,7 @@
 -record(state,{
 	  config=[], 
 	  crawlers_status = started,  %% or stopped
-	  crawlers_list = [],
+	  crawlers_list = dict:new(),
 	  good=0, bad=0
 	 }).
 
@@ -120,9 +120,12 @@ handle_call({info}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
-    Reply =
-    NewState = State,
-    {reply, Reply, NewState};
+    Reply = lists:map(
+	      fun({Key, Pids}) ->
+		      {Key, length(Pids)}
+	      end,
+	      dict:to_list(State#state.crawlers_list)),
+    {reply, lists:sort(Reply), State};
 
 handle_call({show_crawlers_list}, _From, State) ->
     Reply = State#state.crawlers_list,
@@ -338,15 +341,21 @@ is_valid_url(Url, State) ->
 	    
 start_crawlers(State) ->
     Pools = get_config(crawler_pools, State),
-    NewCrawlers = lists:foldl(
+    CrawlerList = lists:foldl(
 		    fun({Depth,Tot}, Crawlers) ->
-			    OtherCrawlers = start_crawlers(Depth, Tot, State),
-			    lists:append( Crawlers, OtherCrawlers)
+			    NewCrawlers = start_crawlers(Depth, Tot, State),
+			    case dict:find(Depth, Crawlers) of
+				error ->
+				    New = NewCrawlers;
+				{ok, RunningCrawlers} ->
+				    New = lists:append(RunningCrawlers,NewCrawlers)
+			    end,
+			    dict:store(Depth, New, Crawlers)
 		    end,
 		    State#state.crawlers_list,
 		    Pools), 
     NewState = State#state{
-		 crawlers_list = NewCrawlers,
+		 crawlers_list = CrawlerList,
 		 crawlers_status = started
 		},
     NewState.
@@ -354,5 +363,5 @@ start_crawlers(State) ->
 start_crawlers(Depth, Total, State) -> 
     lists:map(
       fun(_) ->
-	      {Depth, spawn( ?MODULE, crawl, [Depth, State])} end,
+	      spawn( ?MODULE, crawl, [Depth, State]) end,
       lists:seq(1,Total)).

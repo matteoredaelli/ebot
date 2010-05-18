@@ -49,7 +49,15 @@ update_rrd_statistics(Path) ->
 stats_to_text(Stats) ->
     lists:foldl(
       fun({Key,Val},Output) ->
-	      Output ++ binary_to_list(Key) ++ ":" ++ integer_to_list(Val) ++ "\n"
+	      case Key of
+		  Key when is_integer(Key) ->
+		      NewKey = integer_to_list(Key);
+		  Key when is_binary(Key) ->
+		      NewKey = binary_to_list(Key);
+		  Key ->
+		      NewKey = Key
+	      end,
+	      Output ++ NewKey ++ ":" ++ integer_to_list(Val) ++ "\n"
       end,
       "",
       Stats).
