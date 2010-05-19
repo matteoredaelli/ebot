@@ -16,6 +16,7 @@
 
 %% API
 -export([
+	 check_recover_crawlers/0,
 	 crawl/2,
 	 crawlers_status/0,
 	 fetch_url/2,
@@ -36,7 +37,7 @@
 -record(state,{
 	  config=[], 
 	  crawlers_status = started,  %% or stopped
-	  crawlers_list = dict:new(),
+	  crawlers_list = [],
 	  good=0, bad=0
 	 }).
 
@@ -49,6 +50,8 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
+check_recover_crawlers() ->
+    gen_server:call(?MODULE, {check_recover_crawlers}).
 crawlers_status() ->
     gen_server:call(?MODULE, {crawlers_status}).
 fetch_url(Url, Command) ->
@@ -107,6 +110,12 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
+handle_call({check_recover_crawlers}, _From, State) ->
+    NewCrawlers = check_recover_crawlers(State),
+    NewState = State#state{
+		 crawlers_list = NewCrawlers
+		},
+    {reply, NewCrawlers, NewState};
 handle_call({crawlers_status}, _From, State) ->
     {reply, State#state.crawlers_status, State};
 handle_call({fetch_url, Url, Command}, _From, State) ->
@@ -120,12 +129,23 @@ handle_call({info}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
+    Pools = get_config(crawler_pools, State),
+    Crawlers = State#state.crawlers_list,
+
+    Depths = lists:sort(
+	     lists:map( 
+	       fun({D,_}) -> D end,
+	       Pools
+	      )), 
     Reply = lists:map(
-	      fun({Key, Pids}) ->
-		      {Key, length(Pids)}
+	      fun(Depth) ->
+		      Pids = lists:filter(
+			       fun({D,_}) ->  D == Depth end,
+			       Crawlers),
+		      {Depth,length(Pids)}
 	      end,
-	      dict:to_list(State#state.crawlers_list)),
-    {reply, lists:sort(Reply), State};
+	      Depths),
+    {reply, Reply, State};
 
 handle_call({show_crawlers_list}, _From, State) ->
     Reply = State#state.crawlers_list,
@@ -287,6 +307,20 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
 	    Other
     end.
 
+check_recover_crawlers(State) ->
+    Crawlers = State#state.crawlers_list,
+    list:map( 
+      fun({Depth, Pid}) ->
+	      case is_process_alive(Pid) of
+		  true ->
+		      {Depth, Pid};
+		  false ->
+		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_crawlers, recovering_dead_crawler}}),
+		      start_crawler(Depth, State)
+	      end
+      end,
+      Crawlers).
+
 crawl(Depth, State) ->
     Url = ebot_amqp:get_new_url(Depth),
     analyze_url(Url, State),
@@ -339,29 +373,27 @@ is_valid_url(Url, State) ->
 	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
 	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
 	    
+start_crawler(Depth, State) ->
+    Pid = spawn( ?MODULE, crawl, [Depth, State]),
+    {Depth, Pid}.
+
 start_crawlers(State) ->
     Pools = get_config(crawler_pools, State),
-    CrawlerList = lists:foldl(
+    
+    NewCrawlers = lists:foldl(
 		    fun({Depth,Tot}, Crawlers) ->
-			    NewCrawlers = start_crawlers(Depth, Tot, State),
-			    case dict:find(Depth, Crawlers) of
-				error ->
-				    New = NewCrawlers;
-				{ok, RunningCrawlers} ->
-				    New = lists:append(RunningCrawlers,NewCrawlers)
-			    end,
-			    dict:store(Depth, New, Crawlers)
+			    OtherCrawlers = start_crawlers(Depth, Tot, State),
+			    lists:append( Crawlers, OtherCrawlers)
 		    end,
 		    State#state.crawlers_list,
-		    Pools), 
+		    Pools),
     NewState = State#state{
-		 crawlers_list = CrawlerList,
+		 crawlers_list = NewCrawlers,
 		 crawlers_status = started
 		},
     NewState.
 
 start_crawlers(Depth, Total, State) -> 
     lists:map(
-      fun(_) ->
-	      spawn( ?MODULE, crawl, [Depth, State]) end,
+      fun(_) -> start_crawler(Depth, State) end,
       lists:seq(1,Total)).
