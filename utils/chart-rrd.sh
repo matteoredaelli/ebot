@@ -51,9 +51,9 @@ do
         --title "${rrd} ~ ${start}"       \
         --vertical-label "Totals" --units-length 6 \
         --width $width --height $height --units-exponent 0    \
-        DEF:my0=${rrdpath}/${rrd}.rrd:crawlers0:AVERAGE              \
-        DEF:my1=${rrdpath}/${rrd}.rrd:crawlers1:AVERAGE              \
-	DEF:my2=${rrdpath}/${rrd}.rrd:crawlers2:AVERAGE              \
+        DEF:my0=${rrdpath}/${rrd}.rrd:crawlers_0:AVERAGE              \
+        DEF:my1=${rrdpath}/${rrd}.rrd:crawlers_1:AVERAGE              \
+	DEF:my2=${rrdpath}/${rrd}.rrd:crawlers_2:AVERAGE              \
         LINE0:my0#FF0000:"crawlers_0"	\
         LINE1:my1#0000FF:"crawlers_1"	\
 	LINE2:my2#00FFFF:"crawlers_2"      
