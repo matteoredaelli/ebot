@@ -309,9 +309,9 @@ analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State)
 
 check_recover_crawlers(State) ->
     Crawlers = State#state.crawlers_list,
-    list:map( 
+    lists:map( 
       fun({Depth, Pid}) ->
-	      case is_process_alive(Pid) of
+	      case erlang:is_process_alive(Pid) of
 		  true ->
 		      {Depth, Pid};
 		  false ->
