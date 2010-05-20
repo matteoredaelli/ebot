@@ -79,7 +79,15 @@ statistics() ->
 init([]) ->
    case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
-	   case ampq_connect_and_get_channel() of
+	   Params = proplists:get_value(amqp_params, Config),
+	   AMQParams = #amqp_params{
+	     username =  proplists:get_value(username, Params),
+	     password =  proplists:get_value(password, Params),
+	     host =  proplists:get_value(host, Params),
+	     virtual_host =  proplists:get_value(virtual_host, Params),
+	     channel_max =  proplists:get_value(channel_max, Params)
+	     },
+	   case ampq_connect_and_get_channel(AMQParams) of
 	       {ok, {Connection, Channel}} ->
 		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
 		   amqp_setup_new_url_consumers(Channel, TotQueues),
@@ -184,9 +192,9 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-ampq_connect_and_get_channel() ->
+ampq_connect_and_get_channel(Params) ->
     %% Start a connection to the server
-    Connection = amqp_connection:start_network(),
+    Connection = amqp_connection:start_network(Params),
 
     %% Once you have a connection to the server, you can start an AMQP channel
     %% TODO : verify 
