@@ -54,13 +54,12 @@ command_crawlers([]) ->
 command_crawlers([Command|_Tokens]) ->
     case Command of
     	"check_recover" ->
-	    Tot1 = length(ebot_web:show_crawlers_list()),
-    	    ebot_web:check_recover_crawlers(),
-	    Tot2 = length(ebot_web:show_crawlers_list()),
-	    Result = "Crawlers: from " ++ 
-		integer_to_list(Tot1) ++
-		" to " ++
-		integer_to_list(Tot2);
+	    Before = ebot_web:show_crawlers_list(),
+    	    After = ebot_web:check_recover_crawlers(),
+	    Recovered = length(lists:subtract(After, Before)),
+	    Result = "Crawlers: restarted " ++ 
+		integer_to_list(Recovered) ++
+		" crawlers";
     	"start" ->
 	    Tot1 = length(ebot_web:show_crawlers_list()),
     	    ebot_web:start_crawlers(),
