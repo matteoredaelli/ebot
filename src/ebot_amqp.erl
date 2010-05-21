@@ -79,6 +79,7 @@ statistics() ->
 init([]) ->
    case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
+	   Durable = proplists:get_value(durable_queues, Config),
 	   Params = proplists:get_value(amqp_params, Config),
 	   AMQParams = #amqp_params{
 	     username =  proplists:get_value(username, Params),
@@ -87,11 +88,11 @@ init([]) ->
 	     virtual_host =  proplists:get_value(virtual_host, Params),
 	     channel_max =  proplists:get_value(channel_max, Params)
 	     },
-	   case ampq_connect_and_get_channel(AMQParams) of
+	   case ampq_connect_and_get_channel(AMQParams, Durable) of
 	       {ok, {Connection, Channel}} ->
 		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
-		   amqp_setup_new_url_consumers(Channel, TotQueues),
-		   amqp_setup_refused_consumer(Channel),
+		   amqp_setup_new_url_consumers(Channel, TotQueues, Durable),
+		   amqp_setup_refused_consumer(Channel, Durable),
 		   {ok, #state{
 		      channel = Channel,
 		      connection = Connection,
@@ -192,7 +193,7 @@ code_change(_OldVsn, State, _Extra) ->
 get_config(Option, State) ->
     proplists:get_value(Option, State#state.config).
 
-ampq_connect_and_get_channel(Params) ->
+ampq_connect_and_get_channel(Params, Durable) ->
     %% Start a connection to the server
     Connection = amqp_connection:start_network(Params),
 
@@ -202,9 +203,8 @@ ampq_connect_and_get_channel(Params) ->
     Channel = amqp_connection:open_channel(Connection),
     ExchangeDeclare = #'exchange.declare'{
       exchange = ?EBOT_EXCHANGE, 
-      type = <<"topic">>
-      %% uncomment the following row if you want a durable exchange
-      %% , durable = true
+      type = <<"topic">>,
+      durable = Durable
      },
     #'exchange.declare_ok'{} = amqp_channel:call(Channel, ExchangeDeclare),
     {ok, {Connection,Channel}}.
@@ -239,7 +239,7 @@ amqp_send_message(RoutingKey, Payload, State) ->
     end,
     Result.
 
-amqp_setup_new_url_consumers(Channel, Tot) ->
+amqp_setup_new_url_consumers(Channel, Tot, Durable) ->
     lists:foreach(
       fun(N) ->
 	      KeyQueue = get_new_queue_name(N),
@@ -247,17 +247,19 @@ amqp_setup_new_url_consumers(Channel, Tot) ->
 		Channel,
 		KeyQueue,
 		?EBOT_EXCHANGE,
-		KeyQueue
+		KeyQueue,
+		Durable
 	       ) end,
       lists:seq(0, Tot)
      ).
 
-amqp_setup_refused_consumer(Channel) ->
+amqp_setup_refused_consumer(Channel, Durable) ->
     amqp_setup_consumer(
       Channel,
       ?EBOT_KEY_URL_REFUSED,
       ?EBOT_EXCHANGE,
-      ?EBOT_KEY_URL_REFUSED
+      ?EBOT_KEY_URL_REFUSED,
+      Durable
      ).
 
 queue_statistics(Channel, Q) ->
@@ -268,10 +270,8 @@ queue_statistics(Channel, Q) ->
 	= amqp_channel:call(Channel, QueueDeclare),
     {Q, MessageCount}.
 
-amqp_setup_consumer(Channel, Q, X, Key) ->
-    QueueDeclare = #'queue.declare'{queue=Q
-				    %%, durable=true
-				   },
+amqp_setup_consumer(Channel, Q, X, Key, Durable) ->
+    QueueDeclare = #'queue.declare'{queue=Q, durable=Durable},
     #'queue.declare_ok'{queue = Q,
                         message_count = MessageCount,
                         consumer_count = ConsumerCount}
