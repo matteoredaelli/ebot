@@ -1,6 +1,6 @@
 {application, ebot,
  [{description, "ebot"},
-  {vsn, "0.1"},
+  {vsn, "0.2"},
   {modules, [
     ebot,
     ebot_app,
