@@ -122,9 +122,13 @@ handle_call({show_visited_urls}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
-    Reply = atom_to_list(?MODULE),
-    NewState = State,
-    {reply, Reply, NewState};
+    %% TODO: queue:len is slow O(n), erlang doc suggestes to keep track 
+    %% of the size of queues.
+    Reply = [
+	     {<<"new_urls">>, queue:len(State#state.new_urls)},
+	     {<<"visited_urls">>, queue:len(State#state.visited_urls)}
+	    ],
+    {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,

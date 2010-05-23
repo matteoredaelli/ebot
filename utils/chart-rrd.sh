@@ -38,14 +38,26 @@ do
         --title "${rrd} ${start}"       \
         --vertical-label "Totals" --units-length 6 \
         --width $width --height $height --units-exponent 0    \
-        DEF:my1=${rrdpath}/${rrd}.rrd:disk_size:AVERAGE              \
-        DEF:my2=${rrdpath}/${rrd}.rrd:doc_count:AVERAGE              \
-        LINE1:my1#FF0000:"Disk size"	\
-        LINE2:my2#0000FF:"Doc count"
+        DEF:disk=${rrdpath}/${rrd}.rrd:disk_size:AVERAGE              \
+        DEF:docs=${rrdpath}/${rrd}.rrd:doc_count:AVERAGE              \
+        CDEF:docsK=docs,10000,/              \
+        LINE1:disk#FF0000:"Disk size"	\
+        LINE2:docsK#0000FF:"Doc count"
+
+    rrd="ebot_memcache"
+
+    /usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \
+        --start $start --end now --step $step              \
+        --title "${rrd} ${start}"       \
+        --vertical-label "Totals" --units-length 6 \
+        --width $width --height $height --units-exponent 0    \
+        DEF:new_urls=${rrdpath}/${rrd}.rrd:new_urls:AVERAGE              \
+        DEF:visited_urls=${rrdpath}/${rrd}.rrd:visited_urls:AVERAGE            \
+        LINE1:new_urls#FF0000:"new_urls"	\
+        LINE2:visited_urls#0000FF:"visited_urls" 
 
     rrd="ebot_web"
 
-#  --lower-limit 1
     /usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \
         --start $start --end now --step $step              \
         --title "${rrd} ${start}"       \

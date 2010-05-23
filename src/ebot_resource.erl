@@ -71,7 +71,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 	    Recovered = length(lists:subtract(After, Before)),
 	    Result = "Crawlers: restarted " ++ 
 		integer_to_list(Recovered) ++
-		" crawlers";
+		" crawlers\n";
     	"start" ->
 	    Tot1 = length(ebot_web:show_crawlers_list()),
     	    ebot_web:start_crawlers(),
