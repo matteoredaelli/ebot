@@ -13,6 +13,7 @@
 %% API
 -export([
 	 convert_to_absolute_url/2,
+	 is_external_link/2,
 	 is_valid_url_using_all_known_invalid_regexps/1,
 	 is_valid_url_using_any_mime_regexps/2,
 	 is_valid_url_using_any_url_regexps/2,
@@ -44,6 +45,9 @@ convert_to_absolute_url( Url, ParentUrl) ->
 		    Domain ++ normalize_path(Folder ++ Url)
 	    end
     end.
+
+is_external_link(Url1, Url2) ->
+    not (url_domain(Url1) == url_domain(Url2)).
 
 is_valid_url_using_all_known_invalid_regexps(Url) ->
     RElist = [

@@ -270,8 +270,14 @@ analyze_url_body(Url, State) ->
 		      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 		      ebot_db:open_or_create_url(U),
 		      ebot_memcache:add_new_url(U),
-		      Options = [{referral, Url}],
-		      ebot_db:update_url(U, Options)
+		      case ebot_url_util:is_external_link(Url, U) of
+			  true ->
+			      Options = [{referral, Url}],
+			      ebot_db:update_url(U, Options);
+			  false ->
+			      %% internal link, skipping adding referral
+			      ok
+		      end
 	      end,
 	      NotVisitedLinks),
 	    %% UPDATE ebot-body-visited
