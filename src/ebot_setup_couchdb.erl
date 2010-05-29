@@ -1,11 +1,11 @@
 %%%-------------------------------------------------------------------
-%%% File    : ebot_setup.erl
-%%% Author  : matteo <matteo@pirelli.com>
+%%% File    : ebot_setup_couchdb.erl
+%%% Author  : matteo <matteo.redaelli@libero.it>
 %%% Description : 
 %%%
-%%% Created :  2 May 2010 by matteo <matteo@pirelli.com>
+%%% Created :  2 May 2010 by matteo 
 %%%-------------------------------------------------------------------
--module(ebot_setup).
+-module(ebot_setup_couchdb).
 
 %% API
 

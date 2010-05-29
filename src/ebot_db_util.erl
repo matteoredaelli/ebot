@@ -69,7 +69,7 @@ update_url(Db, Url, Options) ->
     error_logger:info_report({?MODULE, ?LINE, {update_url, Url, with_options, Options}}),
     Doc = open_url(Db, Url),
     NewDoc = update_url_doc(Doc, Options),
-    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, saving_doc, dict:to_list(NewDoc)}}),
+%    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, saving_doc, dict:to_list(NewDoc)}}),
     ?EBOT_DB_BACKEND:save_url_doc(Db, Url, NewDoc).
 
 update_url_doc(Doc, [{link_counts, LinksCount}|Options]) ->
