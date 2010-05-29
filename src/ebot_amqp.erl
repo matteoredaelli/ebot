@@ -235,7 +235,7 @@ amqp_send_message(RoutingKey, Payload, State) ->
 	ok ->
 	    error_logger:info_report({?MODULE, ?LINE, {send_url, RoutingKey, Payload}});
 	else ->
-	    error_logger:info_report({?MODULE, ?LINE, {cannot_send_url, RoutingKey, Payload}})
+	    error_logger:error_report({?MODULE, ?LINE, {cannot_send_url, RoutingKey, Payload}})
     end,
     Result.
 
@@ -285,7 +285,7 @@ amqp_setup_consumer(Channel, Q, X, Key, Durable) ->
     #'queue.bind_ok'{} = amqp_channel:call(Channel, QueueBind).
 
 log(Key,Value) ->
-    error_logger:warning_report({?MODULE, ?LINE, {Key,Value }}),
+    error_logger:info_report({?MODULE, ?LINE, {Key,Value }}),
     io:format("~p: ~p~n",[Key,Value]).
 
 get_new_queue_name(Depth) ->
