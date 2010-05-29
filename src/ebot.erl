@@ -21,7 +21,7 @@ start() ->
     ebot_deps:ensure(),
     ensure_started(crypto),
     ensure_started(webmachine),
-    ensure_started(couchbeam),
+%    ensure_started(couchbeam),
     application:start(ebot).
 
 %% @spec stop() -> ok
@@ -29,6 +29,6 @@ start() ->
 stop() ->
     Res = application:stop(ebot),
     application:stop(webmachine),
-    application:stop(couchbeam),
+%    application:stop(couchbeam),
     application:stop(crypto),
     Res.

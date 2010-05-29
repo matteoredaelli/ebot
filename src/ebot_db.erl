@@ -36,14 +36,11 @@
 %% API
 -export([
 	 info/0,
-	 info_db/0,
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
-	 create_view/1,
-	 open_doc/1,
+	 open_url/1,
 	 open_or_create_url/1,
-	 query_view/2,
 	 update_url/2,
 	 url_status/2
 	]).
@@ -61,6 +58,8 @@
 	  }
 	).
 
+-include("ebot.hrl").
+
 %%====================================================================
 %% API
 %%====================================================================
@@ -72,22 +71,16 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 info() ->
     gen_server:call(?MODULE, {info}).
-info_db() ->
-    gen_server:call(?MODULE, {info_db}).
 url_status(Url, Days) ->
     gen_server:call(?MODULE, {url_status, Url, Days}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
-open_doc(ID) ->
-    gen_server:call(?MODULE, {open_doc, ID}).
+open_url(ID) ->
+    gen_server:call(?MODULE, {open_url, ID}).
 open_or_create_url(Url) ->
     gen_server:call(?MODULE, {open_or_create_url, Url}).
-query_view({DocName, View}, Options) ->
-    gen_server:call(?MODULE, {query_view, DocName, View, Options}).
 create_url(Url) ->
     gen_server:cast(?MODULE, {create_url, Url}).
-create_view(Doc) ->
-    gen_server:cast(?MODULE, {create_view, Doc}).
 update_url(Url, Options) ->
     gen_server:call(?MODULE, {update_url, Url, Options}).
 %%====================================================================
@@ -104,10 +97,17 @@ update_url(Url, Options) ->
 init([]) ->
     case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
-	    couchbeam_server:start_connection_link(),
-	    Ebotdb = couchbeam_server:open_db(default, "ebot"),
-	    State = #state{config=Config, db=Ebotdb},
-	    {ok, State};
+	    case ?EBOT_DB_BACKEND of
+		ebot_db_backend_couchdb ->
+		    couchbeam:start(),
+		    couchbeam_server:start_connection_link(),
+		    Ebotdb = couchbeam_server:open_db(default, "ebot"),
+		    State = #state{config=Config, db=Ebotdb},
+		    {ok, State};
+		else ->
+		    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
+		    {error, unsupported_backend}
+	    end;
 	Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
@@ -122,8 +122,8 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
-handle_call({open_doc, ID}, _From, State) ->
-    Reply = ebot_db_util:open_doc(State#state.db, ID),
+handle_call({open_url, ID}, _From, State) ->
+    Reply = ebot_db_util:open_url(State#state.db, ID),
     {reply, Reply, State};
 handle_call({open_or_create_url, Url}, _From, State) ->
     Reply = ebot_db_util:open_or_create_url(State#state.db, Url),
@@ -131,21 +131,12 @@ handle_call({open_or_create_url, Url}, _From, State) ->
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
-handle_call({info_db}, _From, State) ->
-    Reply = couchbeam_db:info(State#state.db),
-    {reply, Reply, State};
-handle_call({query_view, {DocName, View}, Options}, _From, State) ->
-    Reply = couchbeam_db:query_view(State#state.db, {DocName, View}, Options),
-    {reply, Reply, State};
 handle_call({url_status, Url, Days}, _From, State) ->
     Reply = ebot_db_util:url_status(State#state.db, Url, Days),
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
-    Doc = couchbeam_db:info(State#state.db),
-    DiskSize = round(proplists:get_value(<<"disk_size">>, Doc) / 1024 / 1024),
-    DocCount = proplists:get_value(<<"doc_count">>, Doc),
-    Reply = [{<<"disk_size">>, DiskSize}, {<<"doc_count">>,DocCount}],
+    Reply = ?EBOT_DB_BACKEND:statistics(State#state.db),
     {reply, Reply, State};
 
 handle_call({update_url, Url, Options}, _From, State) ->
@@ -164,9 +155,6 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({create_url, Url}, State) ->
     ebot_db_util:create_url(State#state.db, Url),
-    {noreply, State};
-handle_cast({create_view, Doc}, State) ->
-    couchbeam_db:save_doc(State#state.db, Doc),
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
