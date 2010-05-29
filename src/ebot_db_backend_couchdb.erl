@@ -9,6 +9,9 @@
 
 %% API
 -export([
+	 delete_url/2,
+	 empty_db_urls/1,
+	 list_urls/1,
 	 open_url/2,
 	 save_url_doc/3,
 	 statistics/1
@@ -21,6 +24,15 @@
 %% Function: 
 %% Description:
 %%--------------------------------------------------------------------
+
+delete_url(_Db, _Url) ->
+    {not_yet_implemented_for, ?MODULE}.
+
+empty_db_urls(_Db) ->
+    {not_yet_implemented_for, ?MODULE}.
+
+list_urls(_Db) ->
+    {not_yet_implemented_for, ?MODULE}.
 
 open_url(Db, Id) ->
     open_doc(Db, Id).

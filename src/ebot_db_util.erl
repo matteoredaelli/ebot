@@ -39,8 +39,8 @@ create_url(Db, Url) ->
 	    {<<"last_modified">>, <<"">>},
 	    {<<"server">>, <<"">>},
 	    {<<"x_powered_by">>,<<"">>},
-	    {<<"ebot_body_visited">>, <<"">>},
-	    {<<"ebot_head_visited">>, <<"">>},
+	    {<<"ebot_body_visited">>, 0},
+	    {<<"ebot_head_visited">>, 0},
 	    {<<"ebot_domain">>, list_to_binary(Domain)},
 	    {<<"ebot_errors_count">>, 0},
 	    {<<"ebot_links_count">>, 0},
@@ -80,7 +80,7 @@ update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
   
     OldReferrals = re:split(OldReferralsString, " "),
     case lists:member( RefUrl, OldReferrals) of
-    true ->
+	true ->
     	    NewReferrals = OldReferrals;
 	false ->
 	    NewReferrals = [RefUrl|OldReferrals]
@@ -151,9 +151,9 @@ url_status(Db, Url, Options) ->
 %%====================================================================
 
 date_field_status(Date, Days) ->
-    Now = calendar:local_time(),
-    {Diff, _} = calendar:time_difference(Date, Now),
-    case Diff > Days of
+    Now = calendar:datetime_to_gregorian_seconds( calendar:universal_time() ),
+    Diff = Now - Date, 
+    case Diff > Days * 86400 of
 	true ->
 	    obsolete;
 	false ->
@@ -161,11 +161,10 @@ date_field_status(Date, Days) ->
     end.
 
 doc_date_field_status(Doc, Field, Days) ->
-    case BinDate = doc_get_value(Field, Doc) of
-	<<"">> ->
+    case Date = doc_get_value(Field, Doc) of
+	0 ->
 	    new;
-	BinDate ->
-	    Date = httpd_util:convert_request_date(binary_to_list(BinDate)),
+	Date ->
 	    date_field_status(Date, Days)
     end.   
 
@@ -207,7 +206,7 @@ update_doc_increase_counter(Doc, Key) ->
     update_doc_by_key_value(Doc, Key, Value + 1).
 
 update_doc_timestamp_by_key(Doc, Key) ->
-    Value = list_to_binary(httpd_util:rfc1123_date()),
+    Value = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
     update_doc_by_key_value(Doc, Key, Value).
 
 update_doc_by_key_value(Doc, Key, Value) ->

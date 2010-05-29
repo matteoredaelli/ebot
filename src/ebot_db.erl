@@ -36,9 +36,11 @@
 %% API
 -export([
 	 info/0,
+	 list_urls/0,
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
+	 empty_db_urls/0,
 	 open_url/1,
 	 open_or_create_url/1,
 	 update_url/2,
@@ -69,8 +71,12 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+empty_db_urls() ->
+    gen_server:cast(?MODULE, {empty_db_urls}).
 info() ->
     gen_server:call(?MODULE, {info}).
+list_urls() ->
+    gen_server:call(?MODULE, {list_urls}).
 url_status(Url, Days) ->
     gen_server:call(?MODULE, {url_status, Url, Days}).
 statistics() ->
@@ -104,6 +110,10 @@ init([]) ->
 		    Ebotdb = couchbeam_server:open_db(default, "ebot"),
 		    State = #state{config=Config, db=Ebotdb},
 		    {ok, State};
+		ebot_db_backend_riak ->
+		    {ok, Pid} = riakc_pb_socket:start_link("127.0.0.1", 8087),
+		    State = #state{config=Config, db=Pid},
+		    {ok, State};
 		else ->
 		    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
 		    {error, unsupported_backend}
@@ -122,15 +132,18 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
+handle_call({info}, _From, State) ->
+    Reply = ebot_util:info(State#state.config),
+    {reply, Reply, State};
+handle_call({list_urls}, _From, State) ->
+    Reply =  ?EBOT_DB_BACKEND:list_urls(State#state.db),
+    {reply, Reply, State};
 handle_call({open_url, ID}, _From, State) ->
     Reply = ebot_db_util:open_url(State#state.db, ID),
     {reply, Reply, State};
 handle_call({open_or_create_url, Url}, _From, State) ->
     Reply = ebot_db_util:open_or_create_url(State#state.db, Url),
     {reply, Reply, State};		 
-handle_call({info}, _From, State) ->
-    Reply = ebot_util:info(State#state.config),
-    {reply, Reply, State};
 handle_call({url_status, Url, Days}, _From, State) ->
     Reply = ebot_db_util:url_status(State#state.db, Url, Days),
     {reply, Reply, State};
@@ -155,6 +168,9 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({create_url, Url}, State) ->
     ebot_db_util:create_url(State#state.db, Url),
+    {noreply, State};
+handle_cast({empty_db_urls}, State) ->
+    ?EBOT_DB_BACKEND:empty_db_urls(State#state.db),
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
