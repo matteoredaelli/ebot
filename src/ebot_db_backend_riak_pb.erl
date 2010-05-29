@@ -85,9 +85,14 @@ open_doc(Db, Bucket, Id) ->
     end.
 
 save_doc(Db, Bucket, Key, Doc) ->
-    Object = riakc_obj:new(Bucket, Key, term_to_binary(Doc, [compressed])),
-    % error_logger:info_report({?MODULE, ?LINE, {save_doc, Key, Object, Object}}),
-    case Result = riakc_pb_socket:put(Db, Object) of
+    NewDoc = term_to_binary(Doc, [compressed]),
+    case riakc_pb_socket:get(Db, Bucket, Key) of
+	{error, notfound} ->
+	    NewObject = riakc_obj:new(Bucket, Key, NewDoc);
+	{ok, Object} ->
+	    NewObject = riakc_obj:update_value(Object, NewDoc)
+    end,
+    case Result = riakc_pb_socket:put(Db, NewObject) of
 	ok ->
 	    error_logger:info_report({?MODULE, ?LINE, {save_doc, Key, ok}}),
 	    ok;

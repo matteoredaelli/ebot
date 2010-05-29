@@ -43,6 +43,15 @@ create_url(Db, Url) ->
 	   ],
     ?EBOT_DB_BACKEND:save_url_doc(Db, Url, dict:from_list(Doc)).
 
+is_html_doc(Doc) ->
+    Contenttype = doc_get_value(<<"content_type">>, Doc),
+    case re:run(Contenttype, "^text/html",[{capture, none},caseless] ) of
+	match ->
+	    true;
+	nomatch ->
+	    false
+    end.
+
 open_url(Db, Id) when is_list(Id) ->
     open_url(Db, list_to_binary(Id));
 open_url(Db, Id) ->
@@ -135,15 +144,6 @@ update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
 	     Header_keys
 	    ),
     doc_set_value( <<"http_returncode">>, Http_returncode, Doc2).
-
-is_html_doc(Doc) ->
-    Contenttype = doc_get_value(<<"content_type">>, Doc),
-    case re:run(Contenttype, "^text/html") of
-	{match, _} ->
-	    true;
-	nomatch ->
-	    false
-    end.
 
 url_status(Db, Url, Options) ->
     Doc = open_url(Db, Url),
