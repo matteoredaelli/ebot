@@ -61,6 +61,7 @@
 	).
 
 -include("ebot.hrl").
+-include("deps/couchbeam/include/couchbeam.hrl").
 
 %%====================================================================
 %% API
@@ -103,15 +104,19 @@ update_url(Url, Options) ->
 init([]) ->
     case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
+	    Hostname = proplists:get_value(hostname, Config),
+	    Port = proplists:get_value(port, Config),
 	    case ?EBOT_DB_BACKEND of
 		ebot_db_backend_couchdb ->
 		    couchbeam:start(),
-		    couchbeam_server:start_connection_link(),
+		    couchbeam_server:start_connection_link(
+		      #couchdb_params{host=Hostname, port=Port} 
+		     ),
 		    Ebotdb = couchbeam_server:open_db(default, "ebot"),
 		    State = #state{config=Config, db=Ebotdb},
 		    {ok, State};
 		ebot_db_backend_riak_pb ->
-		    {ok, Pid} = riakc_pb_socket:start_link("127.0.0.1", 8087),
+		    {ok, Pid} = riakc_pb_socket:start_link(Hostname, Port),
 		    State = #state{config=Config, db=Pid},
 		    {ok, State};
 		else ->

@@ -30,15 +30,8 @@
 create_url(Db, Url) ->
     Domain = ebot_url_util:url_domain(Url),
     Doc = [
-%	    {<<"_id">>, Url},
-%	    {<<"http_returncode">>,0},
-%	    {<<"content_length">>, 0},
+	    {<<"http_returncode">>,0},
 	    {<<"content_type">>, <<"">>},
-%	    {<<"date">>,<<"">>},
-%	    {<<"keep_alive">>, <<"">>},
-%	    {<<"last_modified">>, <<"">>},
-%	    {<<"server">>, <<"">>},
-%	    {<<"x_powered_by">>,<<"">>},
 	    {<<"ebot_body_visited">>, 0},
 	    {<<"ebot_head_visited">>, 0},
 	    {<<"ebot_domain">>, list_to_binary(Domain)},

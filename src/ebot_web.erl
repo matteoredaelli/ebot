@@ -227,8 +227,7 @@ analyze_url_header(Url, State) ->
 	    Options = [errors_count],
 	    %% TODO: instead of only Url, it would be nice to send {Url, Reason}
 	    %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
-	    ebot_amqp:add_refused_url(Url),
-	    {error, Reason};
+	    ebot_amqp:add_refused_url(Url);
 	Result ->
 	    Options = [{head, Result}, head_timestamp, visits_count, reset_errors_count]
     end,
@@ -291,19 +290,23 @@ analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, State) ->
     analyze_url_body(Url, State);
 analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, State) ->
     analyze_url_body(Url, State);
-analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, _Status}}, _State) ->
-    %% skipped od updated
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, skipped}}, _State) ->
     ok;
-analyze_url_from_url_status(Url, {ok, {header, _HeaderStatus}, {body,_}}, State) ->
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, updated}}, _State) ->
+    ok;
+%% HeaderStatus  can be: new or obsolete
+analyze_url_from_url_status(Url, {ok, {header, HeaderStatus}, {body,_}}, State) ->
+    error_logger:warning_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, header_status, HeaderStatus }}),
     case analyze_url_header(Url, State) of
 	{error, Reason} ->
+	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, error, Reason}}),
 	    {error, Reason};
 	{ok, _} ->
 	    %% not sure if the url is html or not and so coming back 
 	    %% to check url_status
 	    analyze_url(Url, State);
 	Other ->
-	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, error, Other}}),
+	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, unexpected_result, Other}}),
 	    Other
     end.
 
