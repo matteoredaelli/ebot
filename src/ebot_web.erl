@@ -406,3 +406,19 @@ start_crawlers(Depth, Total, State) ->
     lists:map(
       fun(_) -> start_crawler(Depth, State) end,
       lists:seq(1,Total)).
+
+
+%%====================================================================
+%% EUNIT TESTS
+%%====================================================================
+-ifdef(TEST).
+ebot_web_test() ->
+    Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
+    ExpectedUrlLinks = {ok, [<<"http://www.redaelli.org/">>,
+			     <<"http://www.redaelli.org/matteo">>,
+			     <<"http://www.redaelli.org/matteo/ebot_test/dir1">>
+			    ]
+		       },
+    UrlLinks = ebot_web:fetch_url_links(Url),
+    ?assertEqual( ExpectedUrlLinks, UrlLinks).
+-endif.

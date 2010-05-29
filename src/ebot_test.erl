@@ -14,7 +14,10 @@
 	]).
 
 test() ->
-    test1().
+    Mods = [ebot_url_util, ebot_web],
+    lists:foreach(
+      fun(M) -> M:test() end,
+      Mods).
 
 test1() ->
     Urls = [ <<"http://www.gitorious.org/">> ],
