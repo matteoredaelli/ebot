@@ -7,21 +7,34 @@
 %%%-------------------------------------------------------------------
 -module(ebot_test).
 
--export([test/0]).
+-export([
+	 test/0,
+	 test1/0,
+	 test_oss/0
+	]).
 
 test() ->
-    test_oss().
+    test1().
+
+test1() ->
+    Urls = [ <<"http://www.gitorious.org/">> ],
+    test_crawlers_with_urls(Urls).
 
 test_oss() ->
-    % U = <<"http://www.redaelli.org/">>,
-    ebot_memcache:add_new_url( <<"http://github.com/">> ), 
-    ebot_memcache:add_new_url( <<"http://www.apache.org/">>),
-    ebot_memcache:add_new_url( <<"http://code.google.com/">>),
-    ebot_memcache:add_new_url( <<"http://www.gitorious.org/">> ),
-    ebot_memcache:add_new_url( <<"http://www.sourceforge.net/">> ),
-    ebot_memcache:add_new_url( <<"http://www.freshmeat.net/">> ),
-    ebot_memcache:add_new_url( <<"http://www.ohloh.net/">> ),
-    ebot_memcache:add_new_url( <<"http://raa.ruby-lang.org/">>),
-    ebot_memcache:add_new_url( <<"http://pypi.python.org/pypi">>),
-    ebot_memcache:add_new_url( <<"https://launchpad.net/">>),
+    Urls = [
+     <<"http://github.com/">>, 
+     <<"http://www.apache.org/">>,
+     <<"http://code.google.com/">>,
+     <<"http://www.gitorious.org/">>,
+     <<"http://www.sourceforge.net/">>,
+     <<"http://www.freshmeat.net/">>,
+     <<"http://www.ohloh.net/">>,
+     <<"http://raa.ruby-lang.org/">>,
+     <<"http://pypi.python.org/pypi">>,
+     <<"https://launchpad.net/">>],
+    test_crawlers_with_urls(Urls).
+
+test_crawlers_with_urls(Urls) ->
+    ebot_db:empty_db_urls(),
+    lists:foreach( fun ebot_memcache:add_new_url/1, Urls),
     ebot_web:start_crawlers().

@@ -30,15 +30,15 @@
 create_url(Db, Url) ->
     Domain = ebot_url_util:url_domain(Url),
     Doc = [
-	    {<<"_id">>, Url},
-	    {<<"http_returncode">>,0},
-	    {<<"content_length">>, 0},
+%	    {<<"_id">>, Url},
+%	    {<<"http_returncode">>,0},
+%	    {<<"content_length">>, 0},
 	    {<<"content_type">>, <<"">>},
-	    {<<"date">>,<<"">>},
-	    {<<"keep_alive">>, <<"">>},
-	    {<<"last_modified">>, <<"">>},
-	    {<<"server">>, <<"">>},
-	    {<<"x_powered_by">>,<<"">>},
+%	    {<<"date">>,<<"">>},
+%	    {<<"keep_alive">>, <<"">>},
+%	    {<<"last_modified">>, <<"">>},
+%	    {<<"server">>, <<"">>},
+%	    {<<"x_powered_by">>,<<"">>},
 	    {<<"ebot_body_visited">>, 0},
 	    {<<"ebot_head_visited">>, 0},
 	    {<<"ebot_domain">>, list_to_binary(Domain)},
@@ -64,8 +64,10 @@ open_or_create_url(Db, Url) ->
     end.
 
 update_url(Db, Url, Options) ->
+    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, with_options, Options}}),
     Doc = open_url(Db, Url),
     NewDoc = update_url_doc(Doc, Options),
+    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, saving_doc, dict:to_list(NewDoc)}}),
     ?EBOT_DB_BACKEND:save_url_doc(Db, Url, NewDoc).
 
 update_url_doc(Doc, [{link_counts, LinksCount}|Options]) ->
@@ -121,12 +123,20 @@ update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
 			       binary_to_list(BKey),
 			       Headers,
 			       ""),
-		     NewBKey = list_to_binary(re:replace(binary_to_list(BKey), "-", "_", [global, {return,list}])),
-		     BValue = ebot_util:safe_list_to_binary(Value),
-		     doc_set_value(
-		       NewBKey, 
-		       BValue,
-		       Document)
+		     error_logger:info_report({?MODULE, ?LINE, {update_url_head_doc, BKey, Value}}),
+		     %% some urls may not contain the header entries we want to trak
+		     case Value of
+			 undefined ->
+			     error_logger:info_report({?MODULE, ?LINE, {update_url_head_doc, BKey, headkey_not_found}}),
+			     ok;
+			 _Else ->
+			     NewBKey = list_to_binary(re:replace(binary_to_list(BKey), "-", "_", [global, {return,list}])),
+			     BValue = ebot_util:safe_list_to_binary(Value),
+			     doc_set_value(
+			       NewBKey, 
+			       BValue,
+			       Document)
+		     end
 	     end,
 	     Doc,
 	     Header_keys
@@ -181,12 +191,12 @@ doc_set_value(Key, Value, Doc) ->
 
 ebot_header_keys()->
     [
-     <<"content-length">>,
-     <<"content-type">>,
-     <<"date">>,
-     <<"last-modified">>,
-     <<"server">>,
-     <<"x-powered-by">>
+ %    <<"content-length">>,
+     <<"content-type">>
+ %    <<"date">>,
+ %    <<"last-modified">>,
+ %    <<"server">>,
+ %    <<"x-powered-by">>
     ].
 
 %% removing_db_stardard_keys(Keys) ->

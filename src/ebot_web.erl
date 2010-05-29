@@ -268,7 +268,7 @@ analyze_url_body(Url, State) ->
 	    lists:foreach(
 	      fun(U) ->
 		      %% creating the url in the database if it doen't exists
-		      error_logger:info_report({?MODULE, ?LINE, {adding, U, from, Url}}),
+		      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 		      ebot_db:open_or_create_url(U),
 		      ebot_memcache:add_new_url(U),
 		      Options = [{referral, Url}],

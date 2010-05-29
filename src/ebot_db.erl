@@ -86,7 +86,7 @@ open_url(ID) ->
 open_or_create_url(Url) ->
     gen_server:call(?MODULE, {open_or_create_url, Url}).
 create_url(Url) ->
-    gen_server:cast(?MODULE, {create_url, Url}).
+    gen_server:call(?MODULE, {create_url, Url}).
 update_url(Url, Options) ->
     gen_server:call(?MODULE, {update_url, Url, Options}).
 %%====================================================================
@@ -110,7 +110,7 @@ init([]) ->
 		    Ebotdb = couchbeam_server:open_db(default, "ebot"),
 		    State = #state{config=Config, db=Ebotdb},
 		    {ok, State};
-		ebot_db_backend_riak ->
+		ebot_db_backend_riak_pb ->
 		    {ok, Pid} = riakc_pb_socket:start_link("127.0.0.1", 8087),
 		    State = #state{config=Config, db=Pid},
 		    {ok, State};
@@ -132,6 +132,9 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
+handle_call({create_url, Url}, _From, State) ->
+    Reply = ebot_db_util:create_url(State#state.db, Url),
+    {reply, Reply, State};
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
@@ -166,9 +169,6 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({create_url, Url}, State) ->
-    ebot_db_util:create_url(State#state.db, Url),
-    {noreply, State};
 handle_cast({empty_db_urls}, State) ->
     ?EBOT_DB_BACKEND:empty_db_urls(State#state.db),
     {noreply, State};

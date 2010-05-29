@@ -5,7 +5,7 @@
 %%%
 %%% Created :  29 Mag 2010 by matteo <matteo.redaelli@libero.it>
 %%%-------------------------------------------------------------------
--module(ebot_db_backend_riak).
+-module(ebot_db_backend_riak_pb).
 
 -define(BUCKET_URLS, <<"ebot">>).
 
@@ -86,7 +86,15 @@ open_doc(Db, Bucket, Id) ->
 
 save_doc(Db, Bucket, Key, Doc) ->
     Object = riakc_obj:new(Bucket, Key, term_to_binary(Doc, [compressed])),
-    riakc_pb_socket:put(Db, Object).
+    % error_logger:info_report({?MODULE, ?LINE, {save_doc, Key, Object, Object}}),
+    case Result = riakc_pb_socket:put(Db, Object) of
+	ok ->
+	    error_logger:info_report({?MODULE, ?LINE, {save_doc, Key, ok}}),
+	    ok;
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {save_doc, Key, error, Else}})
+    end,
+    Result.
 
 
 
