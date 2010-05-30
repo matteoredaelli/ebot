@@ -237,6 +237,11 @@ ebot_url_test() ->
      ?assertEqual(Utest, url_using_max_depth(Udir1, 2)),
      ?assertEqual(Utest, url_using_max_depth(Udir11, 2)),
      ?assertEqual(Udir1, url_using_max_depth(Udir1, 3)),
-     ?assertEqual(Udir11, url_using_max_depth(Udir11, 4))
+     ?assertEqual(Udir11, url_using_max_depth(Udir11, 4)),
+     ?assertEqual(true, is_external_link( <<"http://github.com/matteoredaelli/ebot">>,  
+					  <<"http://www.redaelli.org/">>)),
+     ?assertEqual(false, is_external_link( <<"http://www.redaelli.org/matteo/">>,  
+					  <<"http://www.redaelli.org/">>))
+     
     ].
 

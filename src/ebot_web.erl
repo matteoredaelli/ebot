@@ -415,11 +415,16 @@ start_crawlers(Depth, Total, State) ->
 -ifdef(TEST).
 ebot_web_test() ->
     Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
-    ExpectedUrlLinks = {ok, [<<"http://www.redaelli.org/">>,
+    ExpectedUrlLinks = [<<"http://code.google.com/p/oreste/">>,
+			     <<"http://github.com/matteoredaelli/ebot">>,
+			     <<"http://www.redaelli.org/">>,
 			     <<"http://www.redaelli.org/matteo">>,
 			     <<"http://www.redaelli.org/matteo/ebot_test/dir1">>
-			    ]
-		       },
+		       ],
     UrlLinks = ebot_web:fetch_url_links(Url),
-    ?assertEqual( ExpectedUrlLinks, UrlLinks).
+    ?assertEqual( {ok, ExpectedUrlLinks}, UrlLinks),
+    ExpectedExternalLinks = [<<"http://code.google.com/p/oreste/">>,
+			     <<"http://github.com/matteoredaelli/ebot">>],
+    ?assertEqual(ExpectedExternalLinks,  
+		 ebot_url_util:filter_external_links(Url, ExpectedUrlLinks)).
 -endif.
