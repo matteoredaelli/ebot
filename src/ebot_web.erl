@@ -238,7 +238,7 @@ analyze_url_body(Url, State) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
     case fetch_url_links(Url, State) of
 	{ok, Links} ->
-	    LinksCount = length(Links),
+	    LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
 	    %% normalizing Links
 	    error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
 	    NormalizeOptions = get_config(normalize_url, State),
