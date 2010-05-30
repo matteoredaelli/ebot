@@ -283,6 +283,7 @@ analyze_url_body(Url, State) ->
 	    %% UPDATE ebot-body-visited
 	    Options = [body_timestamp, {link_counts,  LinksCount}],
 	    ebot_db:update_url(Url, Options),
+	    ebot_amqp:add_processed_url(Url),
 	    Result =  ok;
 	Error ->
 	    Result = Error

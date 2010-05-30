@@ -27,6 +27,7 @@
 -export([
 	 start_link/0,
 	 add_new_url/1,
+	 add_processed_url/1,
 	 add_refused_url/1,
 	 get_new_url/1,
 	 statistics/0
@@ -55,6 +56,9 @@ start_link() ->
 
 add_new_url(Url) ->
     gen_server:cast(?MODULE, {add_new_url, Url}).
+
+add_processed_url(Url) ->
+    gen_server:cast(?MODULE, {add_processed_url, Url}).
 
 add_refused_url(Url) ->
     gen_server:cast(?MODULE, {add_refused_url, Url}).
@@ -92,6 +96,7 @@ init([]) ->
 	       {ok, {Connection, Channel}} ->
 		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
 		   amqp_setup_new_url_consumers(Channel, TotQueues, Durable),
+		   amqp_setup_processed_consumer(Channel, Durable),
 		   amqp_setup_refused_consumer(Channel, Durable),
 		   {ok, #state{
 		      channel = Channel,
@@ -147,6 +152,10 @@ handle_cast({add_new_url, Url}, State) ->
     Depth = ebot_url_util:url_depth(Url),
     Key = get_new_queue_name(Depth),
     amqp_send_message(Key, Url, State),
+    {noreply, State};
+
+handle_cast({add_processed_url, Url}, State) ->
+    amqp_send_message(?EBOT_KEY_URL_PROCESSED, Url, State),
     {noreply, State};
 
 handle_cast({add_refused_url, Url}, State) ->
@@ -251,6 +260,15 @@ amqp_setup_new_url_consumers(Channel, Tot, Durable) ->
 		Durable
 	       ) end,
       lists:seq(0, Tot)
+     ).
+
+amqp_setup_processed_consumer(Channel, Durable) ->
+    amqp_setup_consumer(
+      Channel,
+      ?EBOT_KEY_URL_PROCESSED,
+      ?EBOT_EXCHANGE,
+      ?EBOT_KEY_URL_PROCESSED,
+      Durable
      ).
 
 amqp_setup_refused_consumer(Channel, Durable) ->
