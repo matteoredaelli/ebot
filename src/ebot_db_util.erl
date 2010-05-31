@@ -72,9 +72,6 @@ update_url(Db, Url, Options) ->
 %    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, saving_doc, dict:to_list(NewDoc)}}),
     ?EBOT_DB_BACKEND:save_url_doc(Db, Url, NewDoc).
 
-update_url_doc(Doc, [{link_counts, LinksCount}|Options]) ->
-    NewDoc = update_doc_by_key_value(Doc, <<"ebot_links_count">>, LinksCount),
-    update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
     %% managing more than one referral: we need also a job that
@@ -94,27 +91,20 @@ update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     NewDoc = update_doc_by_key_value(Doc, <<"ebot_referrals">>, list_to_binary(NewReferralsString)),
     NewDoc2 = update_doc_by_key_value(NewDoc, <<"ebot_referrals_count">>, ReferralsCount + 1),
     update_url_doc(NewDoc2, Options);
-update_url_doc(Doc, [body_timestamp|Options]) ->
-    NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_body_visited">>),
+update_url_doc(Doc, [{update_field_counter, Key}|Options]) ->
+    NewDoc = update_doc_increase_counter(Doc, Key),
     update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [head_timestamp|Options]) ->
-    NewDoc = update_doc_timestamp_by_key(Doc, <<"ebot_head_visited">>),
+update_url_doc(Doc, [{update_field_timestamp, Key}|Options]) ->
+    NewDoc = update_doc_timestamp_by_key(Doc, Key),
+    update_url_doc(NewDoc, Options);
+update_url_doc(Doc, [{update_field_key_value, Key, Value}|Options]) ->
+    NewDoc = update_doc_by_key_value(Doc, Key, Value),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, [{head, Result}|Options]) ->
     NewDoc = update_url_head_doc(Doc, Result),
     update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [errors_count|Options]) ->
-    NewDoc = update_doc_increase_counter(Doc, <<"ebot_errors_count">>),
-    update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [reset_errors_count|Options]) ->
-    NewDoc = update_doc_by_key_value(Doc, <<"ebot_errors_count">>, 0),
-    update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [visits_count|Options]) ->
-    NewDoc = update_doc_increase_counter(Doc, <<"ebot_visits_count">>),
-    update_url_doc(NewDoc, Options);
 update_url_doc(Doc, []) ->
     Doc.
-
 update_url_head_doc(Doc, {error, _}) ->
     Doc;
 update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
