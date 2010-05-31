@@ -15,6 +15,7 @@
 	 convert_to_absolute_url/2,
 	 filter_external_links/2,
 	 is_external_link/2,
+	 is_same_domain/2,
 	 is_valid_url_using_all_known_invalid_regexps/1,
 	 is_valid_url_using_any_mime_regexps/2,
 	 is_valid_url_using_any_url_regexps/2,
@@ -49,9 +50,12 @@ convert_to_absolute_url( Url, ParentUrl) ->
 
 filter_external_links(Url, Links) ->
     lists:filter( fun(L) -> is_external_link(Url, L) end, Links).
+
+is_same_domain(Url1, Url2) ->
+    url_domain(Url1) == url_domain(Url2).
 			  
 is_external_link(Url1, Url2) ->
-    not (url_domain(Url1) == url_domain(Url2)).
+    not is_same_domain(Url1, Url2).
 
 is_valid_url_using_all_known_invalid_regexps(Url) ->
     RElist = [
@@ -241,7 +245,10 @@ ebot_url_test() ->
      ?assertEqual(true, is_external_link( <<"http://github.com/matteoredaelli/ebot">>,  
 					  <<"http://www.redaelli.org/">>)),
      ?assertEqual(false, is_external_link( <<"http://www.redaelli.org/matteo/">>,  
+					  <<"http://www.redaelli.org/">>)),
+     ?assertEqual(false, is_same_domain( <<"http://github.com/matteoredaelli/ebot">>,  
+					  <<"http://www.redaelli.org/">>)),
+     ?assertEqual(true, is_same_domain( <<"http://www.redaelli.org/matteo/">>,  
 					  <<"http://www.redaelli.org/">>))
-     
     ].
 

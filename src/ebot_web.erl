@@ -238,6 +238,7 @@ analyze_url_body(Url, State) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
     case fetch_url_links(Url, State) of
 	{ok, Links} ->
+	    SaveReferralsOptions = get_config(save_referrals, State),
 	    LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
 	    %% normalizing Links
 	    error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
@@ -270,7 +271,10 @@ analyze_url_body(Url, State) ->
 		      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 		      ebot_db:open_or_create_url(U),
 		      ebot_memcache:add_new_url(U),
-		      case ebot_url_util:is_external_link(Url, U) of
+		      IsInternalLink = ebot_url_util:is_same_domain(Url, U),
+		      case (IsInternalLink andalso lists:member(internal,SaveReferralsOptions)) orelse
+			  (not IsInternalLink andalso lists:member(external,SaveReferralsOptions))
+		      of
 			  true ->
 			      Options = [{referral, Url}],
 			      ebot_db:update_url(U, Options);
