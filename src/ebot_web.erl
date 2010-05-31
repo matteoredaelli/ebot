@@ -239,66 +239,82 @@ analyze_url_header(Url, State) ->
     Result.
 
 analyze_url_body(Url, State) ->
+    case fetch_url(Url, get, State) of
+	{ok, {_Status, _Headers, Body}} ->
+	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
+	    Links = ebot_html_util:get_links(Body, Url),
+	    analyze_url_body_links(Url, Links, State),
+	    SendBodyToMqOption = get_config(send_body_to_mq, State),
+	    case SendBodyToMqOption of
+		true ->
+		    NewBody= list_to_binary(Body);
+		false ->
+		    NewBody = <<>>
+	    end,
+	    Payload = term_to_binary({Url, NewBody}, [compressed]),
+	    ebot_amqp:add_processed_url(Payload);
+	{error, Reason} ->
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
+	    {error, Reason};
+	Other ->
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, unknown_error, Other}}),
+	    Other
+    end.
+
+analyze_url_body_links(Url, Links, State) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
-    case fetch_url_links(Url, State) of
-	{ok, Links} ->
-	    SaveReferralsOptions = get_config(save_referrals, State),
-	    LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
-	    %% normalizing Links
-	    error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
-	    NormalizeOptions = get_config(normalize_url, State),
-	    NormalizedLinks = lists:map(
-				fun(U) -> 
-					ebot_url_util:normalize_url(U, NormalizeOptions)
-				end,
-				Links),
-	    
-	    %% removing duplicates
-	    UniqueLinks = ebot_util:remove_duplicates(NormalizedLinks),
-
-	    %% TODO
-	    %% removing unwanted urls
-	    %%
-
-	    %% removing already visited urls and not valid
-	    NotVisitedLinks = lists:filter(
-				fun(U) -> 
-					(not ebot_memcache:is_visited_url(U)) andalso
-					    is_valid_url(U, State)
-				end,
-				UniqueLinks),
-
-	    %% retrive Url from DB
-	    lists:foreach(
-	      fun(U) ->
-		      %% creating the url in the database if it doen't exists
-		      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
-		      ebot_db:open_or_create_url(U),
-		      ebot_memcache:add_new_url(U),
-		      IsInternalLink = ebot_url_util:is_same_domain(Url, U),
-		      case (IsInternalLink andalso lists:member(internal,SaveReferralsOptions)) orelse
-			  (not IsInternalLink andalso lists:member(external,SaveReferralsOptions))
-		      of
-			  true ->
-			      Options = [{referral, Url}],
-			      ebot_db:update_url(U, Options);
-			  false ->
-			      %% internal link, skipping adding referral
-			      ok
-		      end
-	      end,
-	      NotVisitedLinks),
-	    %% UPDATE ebot-body-visited
-	    Options = [{update_field_timestamp, <<"ebot_body_visited">>},
-		       {update_field_key_value, <<"links_counts">>, LinksCount}
-		      ],
-	    ebot_db:update_url(Url, Options),
-	    ebot_amqp:add_processed_url(Url),
-	    Result =  ok;
-	Error ->
-	    Result = Error
-    end,
-   Result.
+    SaveReferralsOptions = get_config(save_referrals, State),
+    LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
+    %% normalizing Links
+    error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
+    NormalizeOptions = get_config(normalize_url, State),
+    NormalizedLinks = lists:map(
+			fun(U) -> 
+				ebot_url_util:normalize_url(U, NormalizeOptions)
+			end,
+			Links),
+    
+    %% removing duplicates
+    UniqueLinks = ebot_util:remove_duplicates(NormalizedLinks),
+    
+    %% TODO
+    %% removing unwanted urls
+    %%
+    
+    %% removing already visited urls and not valid
+    NotVisitedLinks = lists:filter(
+			fun(U) -> 
+				(not ebot_memcache:is_visited_url(U)) andalso
+				    is_valid_url(U, State)
+			end,
+			UniqueLinks),
+    
+    %% retrive Url from DB
+    lists:foreach(
+      fun(U) ->
+	      %% creating the url in the database if it doen't exists
+	      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
+	      ebot_db:open_or_create_url(U),
+	      ebot_memcache:add_new_url(U),
+	      IsInternalLink = ebot_url_util:is_same_domain(Url, U),
+	      case (IsInternalLink andalso lists:member(internal,SaveReferralsOptions)) orelse
+		  (not IsInternalLink andalso lists:member(external,SaveReferralsOptions))
+	      of
+		  true ->
+		      Options = [{referral, Url}],
+		      ebot_db:update_url(U, Options);
+		  false ->
+		      %% internal link, skipping adding referral
+		      ok
+	      end
+      end,
+      NotVisitedLinks),
+    %% UPDATE ebot-body-visited
+    Options = [{update_field_timestamp, <<"ebot_body_visited">>},
+	       {update_field_key_value, <<"links_counts">>, LinksCount}
+	      ],
+    ebot_db:update_url(Url, Options),
+    ok.
 
 analyze_url_from_url_status(Url, not_found, State) ->
     ebot_db:open_or_create_url(Url),
