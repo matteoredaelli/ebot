@@ -1,11 +1,11 @@
 %%%-------------------------------------------------------------------
-%%% File    : ebot_memcache.erl
+%%% File    : ebot_cache.erl
 %%% Author  : matteo <<matteo.redaelli@@libero.it>
 %%% Description : 
 %%%
 %%% Created :  4 Oct 2009 by matteo <matteo@redaelli.org>
 %%%-------------------------------------------------------------------
--module(ebot_memcache).
+-module(ebot_cache).
 -author("matteo.redaelli@@libero.it").
 -define(SERVER, ?MODULE).
 

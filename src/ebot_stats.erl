@@ -8,7 +8,7 @@
 -module(ebot_stats).
 
 -define(RRDUPDATE, "rrdupdate").
--define(STATS_MODULES, [ebot_amqp, ebot_db, ebot_memcache, ebot_web]).
+-define(STATS_MODULES, [ebot_amqp, ebot_db, ebot_cache, ebot_web]).
 %% API
 -export([
 	 statistics/0,
