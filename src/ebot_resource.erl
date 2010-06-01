@@ -60,11 +60,23 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 	    Url = wrq:get_qs_value("url",ReqData),
 	    case is_list(Url) of
 		true ->
-		    ebot_memcache:add_new_url( list_to_binary(Url) ),
+		    ebot_cache:add_new_url( list_to_binary(Url) ),
 		    Result = "Added url: " ++ Url;
 		false ->
 		    Result = "Invalid/Missing parameter url"
 	    end;
+	"analyze_url" ->
+	    Url = wrq:get_qs_value("url",ReqData),
+	    case is_list(Url) of
+		true ->
+		    ebot_web:analyze_url( list_to_binary(Url) ),
+		    Result = "Url Analyzer has started for " ++ Url;
+		false ->
+		    Result = "Invalid/Missing parameter url"
+	    end;
+    	"load_configuration" ->
+    	    ebot_web:load_configuration(),
+	    Result = "ok";
     	"check_recover" ->
 	    Before = ebot_web:show_crawlers_list(),
     	    After = ebot_web:check_recover_crawlers(),

@@ -10,18 +10,20 @@
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, 5000).
 
--include_lib("eunit/include/eunit.hrl").
-
 -behaviour(gen_server).
 
 %% API
 -export([
+	 analyze_url/1,
+	 analyze_url/2,
 	 check_recover_crawlers/0,
 	 crawl/2,
 	 crawlers_status/0,
 	 fetch_url/2,
 	 fetch_url_links/1,
+	 get_state/0,
 	 info/0,
+	 load_configuration/0,
 	 show_crawlers_list/0,
 	 start_crawlers/0,
 	 start_link/0,
@@ -50,6 +52,8 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
+analyze_url(Url) ->
+    gen_server:cast(?MODULE, {analyze_url, Url}).
 check_recover_crawlers() ->
     gen_server:call(?MODULE, {check_recover_crawlers}).
 crawlers_status() ->
@@ -58,8 +62,12 @@ fetch_url(Url, Command) ->
     gen_server:call(?MODULE, {fetch_url, Url, Command}).
 fetch_url_links(Url) ->
     gen_server:call(?MODULE, {fetch_url_links, Url}).
+get_state() ->
+    gen_server:call(?MODULE, {get_state}).
 info() ->
     gen_server:call(?MODULE, {info}).
+load_configuration() ->
+    gen_server:call(?MODULE, {reload}).
 show_crawlers_list() ->
     gen_server:call(?MODULE, {show_crawlers_list}).
 start_crawlers() ->
@@ -124,10 +132,22 @@ handle_call({fetch_url, Url, Command}, _From, State) ->
 handle_call({fetch_url_links, Url}, _From, State) ->
     Reply = fetch_url_links(Url, State),
     {reply, Reply, State};
+handle_call({get_state}, _From, State) ->
+    Reply = State,
+    {reply, Reply, State};
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
-
+handle_call({load_configuration}, _From, State) ->
+    case Result = ebot_util:load_settings(?MODULE) of
+	{ok, Config} ->
+	    NewState = State#state{config=Config},
+	    Reply = ok;
+	Result ->
+	    NewState = State,
+	    Reply = Result
+    end,
+    {reply, Reply, NewState};
 handle_call({statistics}, _From, State) ->
     Pools = get_config(crawler_pools, State),
     Crawlers = State#state.crawlers_list,
@@ -175,7 +195,9 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-
+handle_cast({analyze_url, Url}, State) ->
+    spawn(?MODULE, analyze_url, [Url, State]),
+    {noreply, State};
 handle_cast({start_crawlers}, State) ->
     NewState = start_crawlers(State),
     {noreply, NewState};
@@ -220,7 +242,7 @@ analyze_url(Url, State) ->
     analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days), State).
 
 analyze_url_header(Url, State) ->
-    ebot_memcache:add_visited_url(Url),
+    ebot_cache:add_visited_url(Url),
     case Result = fetch_url(Url, head, State) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
@@ -284,7 +306,7 @@ analyze_url_body_links(Url, Links, State) ->
     %% removing already visited urls and not valid
     NotVisitedLinks = lists:filter(
 			fun(U) -> 
-				(not ebot_memcache:is_visited_url(U)) andalso
+				(not ebot_cache:is_visited_url(U)) andalso
 				    is_valid_url(U, State)
 			end,
 			UniqueLinks),
@@ -295,7 +317,7 @@ analyze_url_body_links(Url, Links, State) ->
 	      %% creating the url in the database if it doen't exists
 	      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 	      ebot_db:open_or_create_url(U),
-	      ebot_memcache:add_new_url(U),
+	      ebot_cache:add_new_url(U),
 	      IsInternalLink = ebot_url_util:is_same_domain(Url, U),
 	      case (IsInternalLink andalso lists:member(internal,SaveReferralsOptions)) orelse
 		  (not IsInternalLink andalso lists:member(external,SaveReferralsOptions))
@@ -363,7 +385,9 @@ crawl(Depth, State) ->
     case ebot_web:crawlers_status() of
 	started ->
 	    timer:sleep( get_config(crawlers_sleep_time, State) ),
-	    crawl(Depth, State);
+	    %% retreive State
+	    %% crawler options could be updated and reloaded to the system
+	    crawl(Depth, get_state() );
 	stopped ->
 	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
 	    stop_crawler( {Depth, self()} )
@@ -438,7 +462,11 @@ start_crawlers(Depth, Total, State) ->
 %%====================================================================
 %% EUNIT TESTS
 %%====================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
 -ifdef(TEST).
+
 ebot_web_test() ->
     Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
     ExpectedUrlLinks = [<<"http://code.google.com/p/oreste/">>,
