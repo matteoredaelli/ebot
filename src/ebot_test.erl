@@ -14,7 +14,7 @@
 	]).
 
 test() ->
-    Mods = [ebot_url_util, ebot_web],
+    Mods = [ebot_url_util, ebot_db, ebot_web],
     lists:foreach(
       fun(M) -> M:test() end,
       Mods).
@@ -40,5 +40,5 @@ test_oss() ->
 test_crawlers_with_urls(Urls) ->
     ebot_db:empty_db_urls(),
     timer:sleep(5),
-    lists:foreach( fun ebot_memcache:add_new_url/1, Urls),
+    lists:foreach( fun ebot_cache:add_new_url/1, Urls),
     ebot_web:start_crawlers().

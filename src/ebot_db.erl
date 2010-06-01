@@ -214,3 +214,26 @@ code_change(_OldVsn, State, _Extra) ->
 %    proplists:get_value(Option, State#state.config).
 
 
+
+%%====================================================================
+%% EUNIT TESTS
+%%====================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+-ifdef(TEST).
+
+ebot_db_test() ->
+    Url = <<"http://www.redaelli.org/matteo/ebot_test/">>,
+    Key = <<"ebot_referrals_count">>,
+    ebot_db:open_or_create_url(Url),
+    Doc = ebot_db:open_url(Url),
+    ?assertEqual({ok,0}, dict:find(Key, Doc)),
+    ebot_db:update_url(Url, [{update_field_key_value, Key, 1}]),
+    Doc2 = ebot_db:open_url(Url),
+    ?assertEqual({ok,1}, dict:find(Key, Doc2)),
+    ebot_db:update_url(Url, [{update_field_key_value, Key, 0}]),
+    Doc3 = ebot_db:open_url(Url),
+    ?assertEqual({ok,0}, dict:find(Key, Doc3)).
+
+-endif.
