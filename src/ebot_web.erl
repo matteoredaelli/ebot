@@ -7,6 +7,7 @@
 %%%-------------------------------------------------------------------
 -module(ebot_web).
 -author("matteo.redaelli@libero.it").
+
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, 5000).
 

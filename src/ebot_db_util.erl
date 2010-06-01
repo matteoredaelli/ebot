@@ -174,12 +174,12 @@ doc_set_value(Key, Value, Doc) ->
 
 ebot_header_keys()->
     [
- %    <<"content-length">>,
-     <<"content-type">>
+     <<"content-length">>,
+     <<"content-type">>,
  %    <<"date">>,
  %    <<"last-modified">>,
- %    <<"server">>,
- %    <<"x-powered-by">>
+     <<"server">>,
+     <<"x-powered-by">>
     ].
 
 %% removing_db_stardard_keys(Keys) ->

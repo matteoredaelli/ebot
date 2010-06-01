@@ -7,6 +7,10 @@
 %%%-------------------------------------------------------------------
 -module(ebot_web_util).
 -author("matteo.redaelli@libero.it").
+
+
+-include("ebot.hrl").
+
 %% API
 -export([
 	 fetch_url/5,
@@ -42,4 +46,19 @@ fetch_url_links(URL, Http_header, Http_options, Request_options) ->
 fetch_url(URL, Command, Http_header, Http_options, Request_options) when is_binary(URL) ->
     fetch_url(binary_to_list(URL), Command, Http_header, Http_options, Request_options);
 fetch_url(URL, Command, Http_header, Http_options, Request_options) ->
-    http:request(Command, {URL,Http_header},Http_options,Request_options).
+    case http:request(Command, {URL,Http_header},Http_options,[{sync, false}|Request_options]) of
+	{ok, RequestId} ->
+	    receive 
+		{http, {RequestId, Result}} -> 
+		    case Result of 
+			{error, _} ->
+			    Result;
+			Result ->
+			    {ok, Result}
+		    end
+	    after ?EBOT_WEB_TIMEOUT
+		      -> {error, timeout} 
+	    end;
+	Error ->
+	    Error
+    end.
