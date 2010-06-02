@@ -311,3 +311,20 @@ get_new_queue_name(Depth) ->
       binary_to_list(?EBOT_KEY_URL_NEW) ++ 
       "." ++ 
       integer_to_list(Depth)).
+
+
+
+%%====================================================================
+%% EUNIT TESTS
+%%====================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+-ifdef(TEST).
+
+ebot_amqp_test() ->
+    Url = <<"http://www.redaelli.org/matteo/ebot_test/">>,
+    ebot_amqp:add_new_url(Url),
+    ?assertEqual( Url, ebot_amqp:get_new_url(2)).
+
+-endif.

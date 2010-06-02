@@ -8,8 +8,6 @@
 -module(ebot_url_util).
 -author("matteo.redaelli@@libero.it").
 
--include_lib("eunit/include/eunit.hrl").
-
 %% API
 -export([
 	 convert_to_absolute_url/2,
@@ -224,6 +222,16 @@ url_without_queries(Url) ->
     {Scheme, Netloc, Path, _Query, _Fragment} = mochiweb_util:urlsplit(Url),
     mochiweb_util:urlunsplit({Scheme, Netloc, Path, [],[]}).
 
+
+
+%%====================================================================
+%% EUNIT TESTS
+%%====================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+-ifdef(TEST).
+
 ebot_url_test() ->
     Domain = "http://www.redaelli.org",
     Home = "http://www.redaelli.org/",
@@ -234,6 +242,13 @@ ebot_url_test() ->
      ?assertEqual(Home, url_add_final_slash(Domain)),
 
      ?assertEqual(Home, convert_to_absolute_url("../../", Utest)),
+
+     ?assertEqual(0, ebot_url_util:url_depth(Domain)),
+     ?assertEqual(0, ebot_url_util:url_depth(Home)),
+     ?assertEqual(2, ebot_url_util:url_depth(Utest)),
+     ?assertEqual(3, ebot_url_util:url_depth(Udir1)),
+     ?assertEqual(4, ebot_url_util:url_depth(Udir11)),
+
      ?assertEqual(Domain, url_domain(Home)),
      ?assertEqual(Domain, url_domain(Utest)),
      ?assertEqual(Domain, url_domain(Udir1)),
@@ -252,3 +267,4 @@ ebot_url_test() ->
 					  <<"http://www.redaelli.org/">>))
     ].
 
+-endif.
