@@ -151,6 +151,7 @@ handle_cast({add_new_url, Url}, State) ->
 	true  ->
 	    NewState = State;
 	false ->
+	    ebot_mq:add_new_url(Url),
 	    {{value, _Item}, NewQueue} = queue:out(Queue),
 	    NewState = State#state{
 			 new_urls = queue:in(Url, NewQueue),

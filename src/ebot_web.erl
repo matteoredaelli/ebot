@@ -154,10 +154,10 @@ handle_call({statistics}, _From, State) ->
     Crawlers = State#state.crawlers_list,
 
     Depths = lists:sort(
-	     lists:map( 
-	       fun({D,_}) -> D end,
-	       Pools
-	      )), 
+	       lists:map( 
+		 fun({D,_}) -> D end,
+		 Pools
+		)), 
     Reply = lists:map(
 	      fun(Depth) ->
 		      Pids = lists:filter(
@@ -374,6 +374,9 @@ check_recover_crawlers(State) ->
       fun({Depth, Pid}) ->
 	      case erlang:is_process_alive(Pid) of
 		  true ->
+		      error_logger:warning_report({?MODULE, ?LINE, 
+					   {check_recover_crawlers, status,
+					    proplists:get_value(status, process_info(Pid)) }}),
 		      {Depth, Pid};
 		  false ->
 		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_crawlers, recovering_dead_crawler}}),
