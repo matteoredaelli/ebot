@@ -25,8 +25,13 @@
 %% Description:
 %%--------------------------------------------------------------------
 
-delete_url(_Db, _Url) ->
-    {not_yet_implemented_for, ?MODULE}.
+delete_url(Db, Url) ->
+    case Doc = open_url(Db, Url) of
+	not_found ->
+	    ok;
+	Doc ->
+	    couchbeam_db:delete_doc(Db, Doc)
+    end.
 
 empty_db_urls(_Db) ->
     {not_yet_implemented_for, ?MODULE}.
@@ -34,8 +39,8 @@ empty_db_urls(_Db) ->
 list_urls(_Db) ->
     {not_yet_implemented_for, ?MODULE}.
 
-open_url(Db, Id) ->
-    open_doc(Db, Id).
+open_url(Db, Url) ->
+    open_doc(Db, Url).
 
 save_url_doc(Db, Url, Doc) ->
     case dict:find(<<"_id">>, Doc) of

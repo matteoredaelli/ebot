@@ -235,5 +235,4 @@ ebot_db_test() ->
     ebot_db:update_url(Url, [{update_field_key_value, Key, 0}]),
     Doc3 = ebot_db:open_url(Url),
     ?assertEqual({ok,0}, dict:find(Key, Doc3)).
-
 -endif.
