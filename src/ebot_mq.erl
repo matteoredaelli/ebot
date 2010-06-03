@@ -1,11 +1,11 @@
 %%%-------------------------------------------------------------------
-%%% File    : ebot_amqp.erl
+%%% File    : ebot_mq.erl
 %%% Author  : matteo <matteo@pirelli.com>
 %%% Description : 
 %%%
 %%% Created : 23 Apr 2010 by matteo <matteo@pirelli.com>
 %%%-------------------------------------------------------------------
--module(ebot_amqp).
+-module(ebot_mq).
 
 -author("matteo.redaelli@@libero.it").
 
@@ -322,9 +322,9 @@ get_new_queue_name(Depth) ->
 
 -ifdef(TEST).
 
-ebot_amqp_test() ->
+ebot_mq_test() ->
     Url = <<"http://www.redaelli.org/matteo/ebot_test/">>,
-    ebot_amqp:add_new_url(Url),
-    ?assertEqual( Url, ebot_amqp:get_new_url(2)).
+    ebot_mq:add_new_url(Url),
+    ?assertEqual( Url, ebot_mq:get_new_url(2)).
 
 -endif.

@@ -56,8 +56,8 @@ init([]) ->
 
 %% EBOT processes
 
-    EbotAmqp = {ebot_amqp,
-	       {ebot_amqp, start_link, []},
+    EbotAmqp = {ebot_mq,
+	       {ebot_mq, start_link, []},
 	       permanent, 5000, worker, dynamic},
     EbotDb = {ebot_db,
 	       {ebot_db, start_link, []},

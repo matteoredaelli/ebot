@@ -12,7 +12,7 @@ outdir=../priv/www
 
 for start in -15m -1hours -1days -7days -31days
 do
-    rrd="ebot_amqp"
+    rrd="ebot_mq"
 
 #  --lower-limit 1
     /usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \

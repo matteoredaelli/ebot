@@ -200,7 +200,7 @@ add_new_url(Url, State) ->
 	true  ->
 	    NewState = State;
 	false ->
-	    ebot_amqp:add_new_url(Url),
+	    ebot_mq:add_new_url(Url),
 	    NewState = State#state{
 			 new_urls = queue:in(Url, Queue)
 			}

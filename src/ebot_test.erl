@@ -14,7 +14,7 @@
 	]).
 
 test() ->
-    Mods = [ebot_url_util, ebot_amqp, ebot_db, ebot_web],
+    Mods = [ebot_url_util, ebot_mq, ebot_db, ebot_web],
     lists:foreach(
       fun(M) -> M:test() end,
       Mods).

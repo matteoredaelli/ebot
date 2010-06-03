@@ -252,7 +252,7 @@ analyze_url_header(Url, State) ->
 		      ],
 	    %% TODO: instead of only Url, it would be nice to send {Url, Reason}
 	    %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
-	    ebot_amqp:add_refused_url( term_to_binary({Url,Reason}, [compressed]));
+	    ebot_mq:add_refused_url( term_to_binary({Url,Reason}, [compressed]));
 	Result ->
 	    Options = [{head, Result, get_config(tobe_saved_headers, State)}, 
 		       {update_field_timestamp,<<"ebot_head_visited">>},
@@ -277,7 +277,7 @@ analyze_url_body(Url, State) ->
 		    NewBody = <<>>
 	    end,
 	    Payload = term_to_binary({Url, NewBody}, [compressed]),
-	    ebot_amqp:add_processed_url(Payload);
+	    ebot_mq:add_processed_url(Payload);
 	{error, Reason} ->
 	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
 	    {error, Reason};
@@ -383,7 +383,7 @@ check_recover_crawlers(State) ->
       Crawlers).
 
 crawl(Depth, State) ->
-    Url = ebot_amqp:get_new_url(Depth),
+    Url = ebot_mq:get_new_url(Depth),
     analyze_url(Url, State),
     case ebot_web:crawlers_status() of
 	started ->
