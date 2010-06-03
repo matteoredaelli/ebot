@@ -30,9 +30,10 @@
 
 -record(state, {
 	  config = [],
-	  counter = 0,
 	  new_urls = queue:new(),
-	  visited_urls = queue:new()
+	  new_urls_counter = 0,
+	  visited_urls = queue:new(),
+	  visited_urls_counter = 0
 	 }).
 
 %%====================================================================
@@ -53,10 +54,8 @@ is_new_url(Url) ->
     gen_server:call(?MODULE, {is_new_url, Url}).
 is_visited_url(Url) ->
     gen_server:call(?MODULE, {is_visited_url, Url}).
-
 info() ->
     gen_server:call(?MODULE, {info}).
-
 show_new_urls() ->
     gen_server:call(?MODULE, {show_new_urls}).
 show_visited_urls() ->
@@ -76,15 +75,21 @@ statistics() ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-
-%%	error_logger:error_report({?MODULE, ?LINE,
-%%                                       {applicazione, partita}}),
-%%	error_logger:error_msg("ebot demo webmachine error: "),
-%%	error_logger:info_msg("ebot demo webmachine info: "),
-
     case ebot_util:load_settings(?MODULE) of
 	{ok, Config} ->
-	    {ok, #state{config=Config}};
+	    NewQueueSize =  proplists:get_value(new_urls_queue_size, Config),
+	    VisitedQueueSize =  proplists:get_value(visited_urls_queue_size, Config),
+
+	    %% filling queue with empty values: in this way it is easier to check the max size of it:
+	    %% the queue is always full, everytime a new item is added, the oldest item is removed
+	    NewUrls = new_queue_with_empty_values(NewQueueSize),
+	    VisitedUrls = new_queue_with_empty_values(VisitedQueueSize),
+
+	    State =  #state{config=Config, 
+			    new_urls = NewUrls,
+			    visited_urls = VisitedUrls
+			   },
+	    {ok, State};
 	Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
 	    {error, cannot_load_configuration}
@@ -125,8 +130,8 @@ handle_call({statistics}, _From, State) ->
     %% TODO: queue:len is slow O(n), erlang doc suggestes to keep track 
     %% of the size of queues.
     Reply = [
-	     {<<"new_urls">>, queue:len(State#state.new_urls)},
-	     {<<"visited_urls">>, queue:len(State#state.visited_urls)}
+	     {<<"new_urls_counter">>, State#state.new_urls_counter},
+	     {<<"visited_urls_counter">>, State#state.visited_urls_counter}
 	    ],
     {reply, Reply, State};
 
@@ -141,7 +146,17 @@ handle_call(_Request, _From, State) ->
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast({add_new_url, Url}, State) ->
-    NewState = add_new_url(Url, State),
+    Queue =  State#state.new_urls,
+    case queue:member(Url, Queue) of
+	true  ->
+	    NewState = State;
+	false ->
+	    {{value, _Item}, NewQueue} = queue:out(Queue),
+	    NewState = State#state{
+			 new_urls = queue:in(Url, NewQueue),
+			 new_urls_counter = State#state.new_urls_counter + 1
+			}
+    end,
     {noreply, NewState};
 
 handle_cast({add_visited_url, Url}, State) ->
@@ -150,9 +165,10 @@ handle_cast({add_visited_url, Url}, State) ->
 	true  ->
 	    NewState = State;
 	false ->
+	    {{value, _Item}, NewQueue} = queue:out(Queue),
 	    NewState = State#state{
-			 counter = State#state.counter + 1,
-			 visited_urls = queue:in(Url, Queue)
+			 visited_urls = queue:in(Url, NewQueue),
+			 visited_urls_counter = State#state.visited_urls_counter + 1
 			}
     end,
     {noreply, NewState};
@@ -191,23 +207,15 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-get_config(Option, State) ->
-    proplists:get_value(Option, State#state.config).
+%%get_config(Option, State) ->
+%%    proplists:get_value(Option, State#state.config).
 
-add_new_url(Url, State) ->
-    Queue =  State#state.new_urls,
-    case queue:member(Url, Queue) of
-	true  ->
-	    NewState = State;
-	false ->
-	    ebot_mq:add_new_url(Url),
-	    NewState = State#state{
-			 new_urls = queue:in(Url, Queue)
-			}
-    end,
-    NewState.
-
-
+new_queue_with_empty_values(QueueSize) ->
+    lists:foldl(
+      fun(_E, Q) -> queue:in(<<>>, Q) end,
+      queue:new(),
+      lists:seq(1, QueueSize)
+     ).
 
 show_queue(Q) ->
     List = lists:map(
