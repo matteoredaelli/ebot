@@ -247,10 +247,12 @@ analyze_url_header(Url, State) ->
     case Result = fetch_url(Url, head, State) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
-	    Options = [{update_field_key_value, <<"ebot_errors_count">>, 0}],
+	    Options = [{update_field_key_value, <<"ebot_errors_count">>, 0},
+		       {update_field_key_value, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason))}
+		      ],
 	    %% TODO: instead of only Url, it would be nice to send {Url, Reason}
 	    %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
-	    ebot_amqp:add_refused_url(Url);
+	    ebot_amqp:add_refused_url( term_to_binary({Url,Reason}, [compressed]));
 	Result ->
 	    Options = [{head, Result}, 
 		       {update_field_timestamp,<<"ebot_head_visited">>},

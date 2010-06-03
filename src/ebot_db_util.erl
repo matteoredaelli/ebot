@@ -72,6 +72,11 @@ update_url(Db, Url, Options) ->
 %    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, saving_doc, dict:to_list(NewDoc)}}),
     ?EBOT_DB_BACKEND:save_url_doc(Db, Url, NewDoc).
 
+%%--------------------------------------------------------------------
+%% Function: update_url_doc
+%% Description: update a url doc using the options set by crawlers
+%%--------------------------------------------------------------------
+  
 update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
     %% managing more than one referral: we need also a job that
@@ -105,8 +110,16 @@ update_url_doc(Doc, [{head, Result}|Options]) ->
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, []) ->
     Doc.
-update_url_head_doc(Doc, {error, _}) ->
-    Doc;
+
+%%--------------------------------------------------------------------
+%% Function: update_url_head_doc
+%% Description: update a doc url using the output of http:get(url, head)
+%%--------------------------------------------------------------------
+  
+update_url_head_doc(Doc, {error, Reason}) ->
+    %% MAYBE, CODE NEVER REACHED
+    update_doc_by_key_value(Doc, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason)));
+
 update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
     Header_keys = ebot_header_keys(),	    
     Doc2 = lists:foldl(
@@ -133,7 +146,8 @@ update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
 	     Doc,
 	     Header_keys
 	    ),
-    doc_set_value( <<"http_returncode">>, Http_returncode, Doc2).
+    Doc3 = doc_set_value( <<"http_returncode">>, Http_returncode, Doc2),
+    update_doc_by_key_value(Doc3, <<"ebot_head_error">>, <<"">>).
 
 url_status(Db, Url, Options) ->
     Doc = open_url(Db, Url),
