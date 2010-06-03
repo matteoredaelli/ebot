@@ -67,7 +67,7 @@ open_or_create_url(Db, Url) ->
 
 update_url(Db, Url, Options) ->
     error_logger:info_report({?MODULE, ?LINE, {update_url, Url, with_options, Options}}),
-    Doc = open_url(Db, Url),
+    Doc = open_or_create_url(Db, Url),
     NewDoc = update_url_doc(Doc, Options),
 %    error_logger:info_report({?MODULE, ?LINE, {update_url, Url, saving_doc, dict:to_list(NewDoc)}}),
     ?EBOT_DB_BACKEND:save_url_doc(Db, Url, NewDoc).
@@ -105,8 +105,8 @@ update_url_doc(Doc, [{update_field_timestamp, Key}|Options]) ->
 update_url_doc(Doc, [{update_field_key_value, Key, Value}|Options]) ->
     NewDoc = update_doc_by_key_value(Doc, Key, Value),
     update_url_doc(NewDoc, Options);
-update_url_doc(Doc, [{head, Result}|Options]) ->
-    NewDoc = update_url_head_doc(Doc, Result),
+update_url_doc(Doc, [{head, Result, Keys}|Options]) ->
+    NewDoc = update_url_head_doc(Doc, Result, Keys),
     update_url_doc(NewDoc, Options);
 update_url_doc(Doc, []) ->
     Doc.
@@ -116,12 +116,11 @@ update_url_doc(Doc, []) ->
 %% Description: update a doc url using the output of http:get(url, head)
 %%--------------------------------------------------------------------
   
-update_url_head_doc(Doc, {error, Reason}) ->
+update_url_head_doc(Doc, {error, Reason}, _) ->
     %% MAYBE, CODE NEVER REACHED
     update_doc_by_key_value(Doc, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason)));
 
-update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}} ) ->
-    Header_keys = ebot_header_keys(),	    
+update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}}, Header_keys ) ->	    
     Doc2 = lists:foldl(
 	     fun(BKey, Document) ->
 		     Value = proplists:get_value(
@@ -185,16 +184,6 @@ doc_get_value(Key, Doc) ->
 
 doc_set_value(Key, Value, Doc) ->
     dict:store(Key, Value, Doc).
-
-ebot_header_keys()->
-    [
-     <<"content-length">>,
-     <<"content-type">>,
- %    <<"date">>,
- %    <<"last-modified">>,
-     <<"server">>,
-     <<"x-powered-by">>
-    ].
 
 %% removing_db_stardard_keys(Keys) ->
 %%     lists:filter(

@@ -254,7 +254,7 @@ analyze_url_header(Url, State) ->
 	    %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
 	    ebot_amqp:add_refused_url( term_to_binary({Url,Reason}, [compressed]));
 	Result ->
-	    Options = [{head, Result}, 
+	    Options = [{head, Result, get_config(tobe_saved_headers, State)}, 
 		       {update_field_timestamp,<<"ebot_head_visited">>},
 		       {update_field_counter, <<"ebot_visits_count">>},
 		       {update_field_key_value, <<"ebot_errors_count">>, 0}
