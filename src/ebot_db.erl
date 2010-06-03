@@ -40,6 +40,7 @@
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
+	 delete_url/1,
 	 empty_db_urls/0,
 	 open_url/1,
 	 open_or_create_url/1,
@@ -72,24 +73,26 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+create_url(Url) ->
+    gen_server:call(?MODULE, {create_url, Url}).
+delete_url(Url) ->
+    gen_server:call(?MODULE, {delete_url, Url}).
 empty_db_urls() ->
     gen_server:cast(?MODULE, {empty_db_urls}).
 info() ->
     gen_server:call(?MODULE, {info}).
 list_urls() ->
     gen_server:call(?MODULE, {list_urls}).
-url_status(Url, Days) ->
-    gen_server:call(?MODULE, {url_status, Url, Days}).
-statistics() ->
-    gen_server:call(?MODULE, {statistics}).
 open_url(ID) ->
     gen_server:call(?MODULE, {open_url, ID}).
 open_or_create_url(Url) ->
     gen_server:call(?MODULE, {open_or_create_url, Url}).
-create_url(Url) ->
-    gen_server:call(?MODULE, {create_url, Url}).
+statistics() ->
+    gen_server:call(?MODULE, {statistics}).
 update_url(Url, Options) ->
     gen_server:call(?MODULE, {update_url, Url, Options}).
+url_status(Url, Days) ->
+    gen_server:call(?MODULE, {url_status, Url, Days}).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -112,7 +115,7 @@ init([]) ->
 		    couchbeam_server:start_connection_link(
 		      #couchdb_params{host=Hostname, port=Port} 
 		     ),
-		    Ebotdb = couchbeam_server:open_db(default, "ebot"),
+		    Ebotdb = couchbeam_server:open_or_create_db(default, "ebot"),
 		    State = #state{config=Config, db=Ebotdb},
 		    {ok, State};
 		ebot_db_backend_riak_pb ->
@@ -139,6 +142,9 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({create_url, Url}, _From, State) ->
     Reply = ebot_db_util:create_url(State#state.db, Url),
+    {reply, Reply, State};
+handle_call({delete_url, Url}, _From, State) ->
+    Reply =  ?EBOT_DB_BACKEND:delete_url(State#state.db, Url),
     {reply, Reply, State};
 handle_call({info}, _From, State) ->
     Reply = ebot_util:info(State#state.config),
@@ -234,5 +240,7 @@ ebot_db_test() ->
     ?assertEqual({ok,1}, dict:find(Key, Doc2)),
     ebot_db:update_url(Url, [{update_field_key_value, Key, 0}]),
     Doc3 = ebot_db:open_url(Url),
-    ?assertEqual({ok,0}, dict:find(Key, Doc3)).
+    ?assertEqual({ok,0}, dict:find(Key, Doc3)),
+    ebot_db:delete_url(Url).
+%    ?assertEqual(not_found,  ebot_db:open_url(Url)).
 -endif.

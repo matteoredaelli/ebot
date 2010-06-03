@@ -29,7 +29,7 @@
     
 create_url(Db, Url) ->
     Domain = ebot_url_util:url_domain(Url),
-    Doc = [
+    Doc = dict:from_list([
 	    {<<"http_returncode">>,0},
 	    {<<"content_type">>, <<"">>},
 	    {<<"ebot_body_visited">>, 0},
@@ -40,8 +40,9 @@ create_url(Db, Url) ->
 	    {<<"ebot_referrals">>, <<"">>},
 	    {<<"ebot_referrals_count">>, 0},
 	    {<<"ebot_visits_count">>, 0}
-	   ],
-    ?EBOT_DB_BACKEND:save_url_doc(Db, Url, dict:from_list(Doc)).
+	   ]),
+    Doc2 = update_url_doc(Doc, [{update_field_timestamp, <<"ebot_created_at">>}]),
+    ?EBOT_DB_BACKEND:save_url_doc(Db, Url, Doc2).
 
 is_html_doc(Doc) ->
     Contenttype = doc_get_value(<<"content_type">>, Doc),

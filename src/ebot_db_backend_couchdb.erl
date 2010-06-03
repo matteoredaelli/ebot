@@ -26,7 +26,7 @@
 %%--------------------------------------------------------------------
 
 delete_url(Db, Url) ->
-    case Doc = open_url(Db, Url) of
+    case Doc = couchbeam_db:open_doc(Db, Url) of
 	not_found ->
 	    ok;
 	Doc ->
