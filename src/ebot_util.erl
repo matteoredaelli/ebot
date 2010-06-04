@@ -7,8 +7,11 @@
 %%%-------------------------------------------------------------------
 -module(ebot_util).
 
+-include("ebot.hrl").
+
 %% API
 -export([ 
+	  get_env/1,
 	  load_settings/1,
 	  info/1,
 	  is_valid_using_all_regexps/2,
@@ -23,6 +26,9 @@
 %% EBOT specific Internal functions
 %%====================================================================
 
+get_env(Key) ->
+    application:get_env(ebot, Key).
+    
 info(Config) ->
     Keys = proplists:get_keys(Config),
     KeysStrings =

@@ -35,7 +35,6 @@
 
 %% API
 -export([
-	 info/0,
 	 list_urls/0,
 	 start_link/0,
 	 statistics/0,
@@ -54,7 +53,6 @@
 
 -record( state,
 	 {
-	   config=[], 
 	   db,
 	   good=0, 
 	   bad=0
@@ -79,8 +77,6 @@ delete_url(Url) ->
     gen_server:call(?MODULE, {delete_url, Url}).
 empty_db_urls() ->
     gen_server:cast(?MODULE, {empty_db_urls}).
-info() ->
-    gen_server:call(?MODULE, {info}).
 list_urls() ->
     gen_server:call(?MODULE, {list_urls}).
 open_url(ID) ->
@@ -105,30 +101,24 @@ url_status(Url, Days) ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-    case ebot_util:load_settings(?MODULE) of
-	{ok, Config} ->
-	    Hostname = proplists:get_value(hostname, Config),
-	    Port = proplists:get_value(port, Config),
-	    case ?EBOT_DB_BACKEND of
-		ebot_db_backend_couchdb ->
-		    couchbeam:start(),
-		    couchbeam_server:start_connection_link(
-		      #couchdb_params{host=Hostname, port=Port} 
-		     ),
-		    Ebotdb = couchbeam_server:open_or_create_db(default, "ebot"),
-		    State = #state{config=Config, db=Ebotdb},
-		    {ok, State};
-		ebot_db_backend_riak_pb ->
-		    {ok, Pid} = riakc_pb_socket:start_link(Hostname, Port),
-		    State = #state{config=Config, db=Pid},
-		    {ok, State};
-		else ->
-		    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
-		    {error, unsupported_backend}
-	    end;
-	Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
-	    {error, cannot_load_configuration}
+    {ok, Hostname} = ebot_util:get_env(db_hostname),
+    {ok, Port} = ebot_util:get_env(db_port),
+    case ?EBOT_DB_BACKEND of
+	ebot_db_backend_couchdb ->
+	    couchbeam:start(),
+	    couchbeam_server:start_connection_link(
+	      #couchdb_params{host=Hostname, port=Port} 
+	     ),
+	    Ebotdb = couchbeam_server:open_or_create_db(default, "ebot"),
+	    State = #state{db=Ebotdb},
+	    {ok, State};
+	ebot_db_backend_riak_pb ->
+	    {ok, Pid} = riakc_pb_socket:start_link(Hostname, Port),
+	    State = #state{db=Pid},
+	    {ok, State};
+	else ->
+	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
+	    {error, unsupported_backend}
     end.
 
 %%--------------------------------------------------------------------
@@ -145,9 +135,6 @@ handle_call({create_url, Url}, _From, State) ->
     {reply, Reply, State};
 handle_call({delete_url, Url}, _From, State) ->
     Reply =  ?EBOT_DB_BACKEND:delete_url(State#state.db, Url),
-    {reply, Reply, State};
-handle_call({info}, _From, State) ->
-    Reply = ebot_util:info(State#state.config),
     {reply, Reply, State};
 handle_call({list_urls}, _From, State) ->
     Reply =  ?EBOT_DB_BACKEND:list_urls(State#state.db),
@@ -215,11 +202,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-
-%get_config(Option, State) ->
-%    proplists:get_value(Option, State#state.config).
-
-
 
 %%====================================================================
 %% EUNIT TESTS
