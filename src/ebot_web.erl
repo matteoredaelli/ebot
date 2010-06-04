@@ -17,7 +17,7 @@
 -export([
 	 analyze_url/1,
 	 check_recover_crawlers/0,
-	 crawl/2,
+	 crawl/1,
 	 crawlers_status/0,
 	 fetch_url/2,
 	 fetch_url_links/1,
@@ -359,14 +359,14 @@ check_recover_crawlers(State) ->
       end,
       Crawlers).
 
-crawl(Depth, State) ->
+crawl(Depth) ->
     Url = ebot_mq:get_new_url(Depth),
     analyze_url(Url),
     case ebot_web:crawlers_status() of
 	started ->
 	    {ok, Sleep} = ebot_util:get_env(crawlers_sleep_time),
 	    timer:sleep( Sleep ),
-	    crawl(Depth, State );
+	    crawl(Depth);
 	stopped ->
 	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
 	    stop_crawler( {Depth, self()} )
@@ -410,7 +410,7 @@ is_valid_url(Url) ->
 	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
 	    
 start_crawler(Depth, State) ->
-    Pid = spawn( ?MODULE, crawl, [Depth, State]),
+    Pid = spawn( ?MODULE, crawl, [Depth]),
     {Depth, Pid}.
 
 start_crawlers(State) ->
