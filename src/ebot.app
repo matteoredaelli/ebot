@@ -1,3 +1,5 @@
+%% -*- mode: erlang -*-
+
 {application, ebot,
  [{description, "ebot"},
   {vsn, "0.3"},
@@ -15,4 +17,4 @@
   {registered, []},
   {mod, {ebot_app, []}},
   {env, []},
-  {applications, [kernel, stdlib, crypto, inets]}]}.
+  {applications, [kernel, stdlib, crypto]}]}.
