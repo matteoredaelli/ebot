@@ -29,7 +29,6 @@
 	 terminate/2, code_change/3]).
 
 -record(state, {
-	  config = [],
 	  new_urls = queue:new(),
 	  new_urls_counter = 0,
 	  visited_urls = queue:new(),
@@ -75,25 +74,21 @@ statistics() ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-    case ebot_util:load_settings(?MODULE) of
-	{ok, Config} ->
-	    NewQueueSize =  proplists:get_value(new_urls_queue_size, Config),
-	    VisitedQueueSize =  proplists:get_value(visited_urls_queue_size, Config),
+    {ok, NewQueueSize} = ebot_util:get_env(cache_new_urls_queue_size),
+    {ok, VisitedQueueSize} = ebot_util:get_env(cache_visited_urls_queue_size),
 
-	    %% filling queue with empty values: in this way it is easier to check the max size of it:
-	    %% the queue is always full, everytime a new item is added, the oldest item is removed
-	    NewUrls = new_queue_with_empty_values(NewQueueSize),
-	    VisitedUrls = new_queue_with_empty_values(VisitedQueueSize),
+    %% filling queue with empty values: 
+    %% in this way it is easier to check the max size of it:
+    %% the queue is always full, everytime a new item is added,
+    %% the oldest item is removed
+    NewUrls = new_queue_with_empty_values(NewQueueSize),
+    VisitedUrls = new_queue_with_empty_values(VisitedQueueSize),
 
-	    State =  #state{config=Config, 
-			    new_urls = NewUrls,
-			    visited_urls = VisitedUrls
-			   },
-	    {ok, State};
-	Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
-	    {error, cannot_load_configuration}
-    end.
+    State =  #state{
+      new_urls = NewUrls,
+      visited_urls = VisitedUrls
+     },
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -115,7 +110,7 @@ handle_call({is_visited_url, Url}, _From, State) ->
     {reply, Result, State};
 
 handle_call({info}, _From, State) ->
-    Reply = ebot_util:info(State#state.config),
+    Reply = ok,
     {reply, Reply, State};
 
 handle_call({show_new_urls}, _From, State) ->
