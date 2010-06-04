@@ -354,7 +354,7 @@ check_recover_crawlers(State) ->
 		      {Depth, Pid};
 		  false ->
 		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_crawlers, recovering_dead_crawler}}),
-		      start_crawler(Depth, State)
+		      start_crawler(Depth)
 	      end
       end,
       Crawlers).
@@ -409,7 +409,7 @@ is_valid_url(Url) ->
 	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
 	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
 	    
-start_crawler(Depth, State) ->
+start_crawler(Depth) ->
     Pid = spawn( ?MODULE, crawl, [Depth]),
     {Depth, Pid}.
 
@@ -418,7 +418,7 @@ start_crawlers(State) ->
     
     NewCrawlers = lists:foldl(
 		    fun({Depth,Tot}, Crawlers) ->
-			    OtherCrawlers = start_crawlers(Depth, Tot, State),
+			    OtherCrawlers = start_crawlers(Depth, Tot),
 			    lists:append( Crawlers, OtherCrawlers)
 		    end,
 		    State#state.crawlers_list,
@@ -429,9 +429,9 @@ start_crawlers(State) ->
 		},
     NewState.
 
-start_crawlers(Depth, Total, State) -> 
+start_crawlers(Depth, Total) -> 
     lists:map(
-      fun(_) -> start_crawler(Depth, State) end,
+      fun(_) -> start_crawler(Depth) end,
       lists:seq(1,Total)).
 
 
