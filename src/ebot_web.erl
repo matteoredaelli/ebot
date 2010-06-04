@@ -16,7 +16,6 @@
 %% API
 -export([
 	 analyze_url/1,
-	 analyze_url/2,
 	 check_recover_crawlers/0,
 	 crawl/2,
 	 crawlers_status/0,
@@ -50,8 +49,6 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
-analyze_url(Url) ->
-    gen_server:cast(?MODULE, {analyze_url, Url}).
 check_recover_crawlers() ->
     gen_server:call(?MODULE, {check_recover_crawlers}).
 crawlers_status() ->
@@ -117,10 +114,10 @@ handle_call({check_recover_crawlers}, _From, State) ->
 handle_call({crawlers_status}, _From, State) ->
     {reply, State#state.crawlers_status, State};
 handle_call({fetch_url, Url, Command}, _From, State) ->
-    Reply = fetch_url(Url, Command, State),
+    Reply = try_fetch_url(Url, Command),
     {reply, Reply, State};
 handle_call({fetch_url_links, Url}, _From, State) ->
-    Reply = fetch_url_links(Url, State),
+    Reply = try_fetch_url_links(Url),
     {reply, Reply, State};
 handle_call({get_state}, _From, State) ->
     Reply = State,
@@ -175,9 +172,6 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({analyze_url, Url}, State) ->
-    spawn(?MODULE, analyze_url, [Url, State]),
-    {noreply, State};
 handle_cast({start_crawlers}, State) ->
     NewState = start_crawlers(State),
     {noreply, NewState};
@@ -215,15 +209,15 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-analyze_url(empty, _State) ->
+analyze_url(empty) ->
     {ok, empty};
-analyze_url(Url, State) ->
+analyze_url(Url) ->
     {ok, Days} = ebot_util:get_env(obsolete_urls_after_days),
-    analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days), State).
+    analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days)).
 
-analyze_url_header(Url, State) ->
+analyze_url_header(Url) ->
     ebot_cache:add_visited_url(Url),
-    case Result = fetch_url(Url, head, State) of
+    case Result = fetch_url(Url, head) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
 	    Options = [{update_field_key_value, <<"ebot_errors_count">>, 0},
@@ -243,12 +237,12 @@ analyze_url_header(Url, State) ->
     ebot_db:update_url(Url, Options),
     Result.
 
-analyze_url_body(Url, State) ->
-    case fetch_url(Url, get, State) of
+analyze_url_body(Url) ->
+    case fetch_url(Url, get) of
 	{ok, {_Status, _Headers, Body}} ->
 	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
 	    Links = ebot_html_util:get_links(Body, Url),
-	    analyze_url_body_links(Url, Links, State),
+	    analyze_url_body_links(Url, Links),
 	    {ok, SendBodyToMqOption} = ebot_util:get_env(send_body_to_mq),
 	    case SendBodyToMqOption of
 		true ->
@@ -266,7 +260,7 @@ analyze_url_body(Url, State) ->
 	    Other
     end.
 
-analyze_url_body_links(Url, Links, State) ->
+analyze_url_body_links(Url, Links) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
     {ok, SaveReferralsOptions} = ebot_util:get_env(save_referrals),
     LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
@@ -290,7 +284,7 @@ analyze_url_body_links(Url, Links, State) ->
     NotVisitedLinks = lists:filter(
 			fun(U) -> 
 				(not ebot_cache:is_visited_url(U)) andalso
-				    is_valid_url(U, State)
+				    is_valid_url(U)
 			end,
 			UniqueLinks),
     
@@ -321,28 +315,28 @@ analyze_url_body_links(Url, Links, State) ->
     ebot_db:update_url(Url, Options),
     ok.
 
-analyze_url_from_url_status(Url, not_found, State) ->
+analyze_url_from_url_status(Url, not_found) ->
     ebot_db:open_or_create_url(Url),
-    analyze_url(Url, State);
-analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}, State) ->
-    analyze_url_body(Url, State);
-analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}, State) ->
-    analyze_url_body(Url, State);
-analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, skipped}}, _State) ->
+    analyze_url(Url);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,new}}) ->
+    analyze_url_body(Url);
+analyze_url_from_url_status(Url, {ok, {header, updated}, {body,obsolete}}) ->
+    analyze_url_body(Url);
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, skipped}}) ->
     ok;
-analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, updated}}, _State) ->
+analyze_url_from_url_status(_Url, {ok, {header, updated}, {body, updated}}) ->
     ok;
 %% HeaderStatus  can be: new or obsolete
-analyze_url_from_url_status(Url, {ok, {header, HeaderStatus}, {body,_}}, State) ->
+analyze_url_from_url_status(Url, {ok, {header, HeaderStatus}, {body,_}}) ->
     error_logger:warning_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, header_status, HeaderStatus }}),
-    case analyze_url_header(Url, State) of
+    case analyze_url_header(Url) of
 	{error, Reason} ->
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, error, Reason}}),
 	    {error, Reason};
 	{ok, _} ->
 	    %% not sure if the url is html or not and so coming back 
 	    %% to check url_status
-	    analyze_url(Url, State);
+	    analyze_url(Url);
 	Other ->
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_from_url_status, Url, unexpected_result, Other}}),
 	    Other
@@ -367,7 +361,7 @@ check_recover_crawlers(State) ->
 
 crawl(Depth, State) ->
     Url = ebot_mq:get_new_url(Depth),
-    analyze_url(Url, State),
+    analyze_url(Url),
     case ebot_web:crawlers_status() of
 	started ->
 	    {ok, Sleep} = ebot_util:get_env(crawlers_sleep_time),
@@ -378,7 +372,7 @@ crawl(Depth, State) ->
 	    stop_crawler( {Depth, self()} )
     end.
 
-fetch_url(Url, Command, _State) ->
+try_fetch_url(Url, Command) ->
     {ok, Http_header} = ebot_util:get_env(web_http_header),
     {ok, Request_options} = ebot_util:get_env(web_request_options),
     {ok, Http_options} = ebot_util:get_env(web_http_options),
@@ -391,8 +385,8 @@ fetch_url(Url, Command, _State) ->
 	    {error, Reason}
     end.
 
-fetch_url_links(Url, State) ->
-    case fetch_url(Url, get, State) of
+try_fetch_url_links(Url) ->
+    case fetch_url(Url, get) of
 	{ok, {_Status, _Headers, Body}} ->
 	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
 	    {ok, ebot_html_util:get_links(Body, Url)};
@@ -404,10 +398,10 @@ fetch_url_links(Url, State) ->
 	    Other
     end.
 
-is_valid_url(Url, State) when is_binary(Url) ->
-    is_valid_url(binary_to_list(Url), State);
+is_valid_url(Url) when is_binary(Url) ->
+    is_valid_url(binary_to_list(Url));
 
-is_valid_url(Url, _State) ->
+is_valid_url(Url) ->
     {ok, MimeAnyRE} =  ebot_util:get_env(mime_any_regexps),
     {ok, UrlAllRE} =  ebot_util:get_env(url_all_regexps),
     {ok, UrlAnyRE} = ebot_util:get_env(url_any_regexps),
