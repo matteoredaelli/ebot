@@ -74,9 +74,6 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		false ->
 		    Result = "Invalid/Missing parameter url"
 	    end;
-    	"load_configuration" ->
-    	    ebot_web:load_configuration(),
-	    Result = "ok";
     	"check_recover" ->
 	    Before = ebot_web:show_crawlers_list(),
     	    After = ebot_web:check_recover_crawlers(),
