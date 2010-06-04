@@ -79,4 +79,4 @@
 	 %% END ENV
 	]
   }, %% end env
-  {applications, [kernel, stdlib, crypto]}]}.
+  {applications, [kernel, stdlib, crypto, inets]}]}.

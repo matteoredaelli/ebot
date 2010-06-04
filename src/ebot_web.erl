@@ -450,7 +450,7 @@ ebot_web_test() ->
 			     <<"http://www.redaelli.org/matteo">>,
 			     <<"http://www.redaelli.org/matteo/ebot_test/dir1">>
 		       ],
-    UrlLinks = ebot_web:fetch_url_links(Url),
+    UrlLinks = try_fetch_url_links(Url),
     ?assertEqual( {ok, ExpectedUrlLinks}, UrlLinks),
     ExpectedExternalLinks = [<<"http://code.google.com/p/oreste/">>,
 			     <<"http://github.com/matteoredaelli/ebot">>],
