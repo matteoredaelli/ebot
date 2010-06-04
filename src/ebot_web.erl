@@ -21,7 +21,6 @@
 	 crawlers_status/0,
 	 fetch_url/2,
 	 fetch_url_links/1,
-	 get_state/0,
 	 info/0,
 	 show_crawlers_list/0,
 	 start_crawlers/0,
@@ -57,8 +56,6 @@ fetch_url(Url, Command) ->
     gen_server:call(?MODULE, {fetch_url, Url, Command}).
 fetch_url_links(Url) ->
     gen_server:call(?MODULE, {fetch_url_links, Url}).
-get_state() ->
-    gen_server:call(?MODULE, {get_state}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_crawlers_list() ->
@@ -119,11 +116,13 @@ handle_call({fetch_url, Url, Command}, _From, State) ->
 handle_call({fetch_url_links, Url}, _From, State) ->
     Reply = try_fetch_url_links(Url),
     {reply, Reply, State};
-handle_call({get_state}, _From, State) ->
-    Reply = State,
-    {reply, Reply, State};
 handle_call({info}, _From, State) ->
-    Reply = ok,
+    Crawlers = State#state.crawlers_list,
+    Reply = lists:map(
+	      fun({Depth, Pid}) ->
+		      {Depth, process_info(Pid)}
+	      end,
+	      Crawlers),
     {reply, Reply, State};
 handle_call({statistics}, _From, State) ->
     {ok, Pools} = ebot_util:get_env(crawler_pools),
@@ -217,7 +216,7 @@ analyze_url(Url) ->
 
 analyze_url_header(Url) ->
     ebot_cache:add_visited_url(Url),
-    case Result = fetch_url(Url, head) of
+    case Result = try_fetch_url(Url, head) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
 	    Options = [{update_field_key_value, <<"ebot_errors_count">>, 0},
@@ -238,7 +237,7 @@ analyze_url_header(Url) ->
     Result.
 
 analyze_url_body(Url) ->
-    case fetch_url(Url, get) of
+    case try_fetch_url(Url, get) of
 	{ok, {_Status, _Headers, Body}} ->
 	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
 	    Links = ebot_html_util:get_links(Body, Url),
