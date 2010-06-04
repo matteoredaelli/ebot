@@ -6,9 +6,13 @@
     ebot_app,
     ebot_sup,
     ebot_deps,
-    ebot_resource
+    ebot_resource,
+    ebot_db,
+    ebot_cache,
+    ebot_mq,
+    ebot_web
   ]},
   {registered, []},
   {mod, {ebot_app, []}},
   {env, []},
-  {applications, [kernel, stdlib, crypto]}]}.
+  {applications, [kernel, stdlib, crypto, inets]}]}.
