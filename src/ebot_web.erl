@@ -24,7 +24,6 @@
 	 fetch_url_links/1,
 	 get_state/0,
 	 info/0,
-	 load_configuration/0,
 	 show_crawlers_list/0,
 	 start_crawlers/0,
 	 start_link/0,
@@ -38,10 +37,8 @@
 	 terminate/2, code_change/3]).
 
 -record(state,{
-	  config=[], 
 	  crawlers_status = started,  %% or stopped
-	  crawlers_list = [],
-	  good=0, bad=0
+	  crawlers_list = []
 	 }).
 
 %%====================================================================
@@ -67,8 +64,6 @@ get_state() ->
     gen_server:call(?MODULE, {get_state}).
 info() ->
     gen_server:call(?MODULE, {info}).
-load_configuration() ->
-    gen_server:call(?MODULE, {reload}).
 show_crawlers_list() ->
     gen_server:call(?MODULE, {show_crawlers_list}).
 start_crawlers() ->
@@ -91,24 +86,18 @@ stop_crawlers() ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-    case ebot_util:load_settings(?MODULE) of
-	{ok, Config} ->
-	    State = #state{config=Config},
-	    Options = get_config(request_options, State),
-	    http:set_options(Options),
-	    case get_config(start_crawlers_at_boot, State) of
-		true ->
-		    Crawlers_status = started,
-		    NewState = start_crawlers(State);
-		false ->
-		    Crawlers_status = stopped,
-		    NewState = State
-	    end,
-	    {ok, NewState#state{crawlers_status = Crawlers_status}};
-	Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
-	    {error, cannot_load_configuration}
-    end.
+    {ok, Options} = ebot_util:get_env(web_request_options),
+    http:set_options(Options),
+    State = #state{},
+    case ebot_util:get_env(start_crawlers_at_boot) of
+	{ok, true} ->
+	    Crawlers_status = started,
+	    NewState = start_crawlers(State);
+	{ok, false} ->
+	    Crawlers_status = stopped,
+	    NewState = State
+    end,
+    {ok, NewState#state{crawlers_status = Crawlers_status}}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -137,20 +126,10 @@ handle_call({get_state}, _From, State) ->
     Reply = State,
     {reply, Reply, State};
 handle_call({info}, _From, State) ->
-    Reply = ebot_util:info(State#state.config),
+    Reply = ok,
     {reply, Reply, State};
-handle_call({load_configuration}, _From, State) ->
-    case Result = ebot_util:load_settings(?MODULE) of
-	{ok, Config} ->
-	    NewState = State#state{config=Config},
-	    Reply = ok;
-	Result ->
-	    NewState = State,
-	    Reply = Result
-    end,
-    {reply, Reply, NewState};
 handle_call({statistics}, _From, State) ->
-    Pools = get_config(crawler_pools, State),
+    {ok, Pools} = ebot_util:get_env(crawler_pools),
     Crawlers = State#state.crawlers_list,
 
     Depths = lists:sort(
@@ -239,7 +218,7 @@ code_change(_OldVsn, State, _Extra) ->
 analyze_url(empty, _State) ->
     {ok, empty};
 analyze_url(Url, State) ->
-    Days = get_config(obsolete_urls_after_days, State),
+    {ok, Days} = ebot_util:get_env(obsolete_urls_after_days),
     analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days), State).
 
 analyze_url_header(Url, State) ->
@@ -254,7 +233,8 @@ analyze_url_header(Url, State) ->
 	    %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
 	    ebot_mq:add_refused_url( term_to_binary({Url,Reason}, [compressed]));
 	Result ->
-	    Options = [{head, Result, get_config(tobe_saved_headers, State)}, 
+	    {ok, H} = ebot_util:get_env(tobe_saved_headers),
+	    Options = [{head, Result, H}, 
 		       {update_field_timestamp,<<"ebot_head_visited">>},
 		       {update_field_counter, <<"ebot_visits_count">>},
 		       {update_field_key_value, <<"ebot_errors_count">>, 0}
@@ -269,7 +249,7 @@ analyze_url_body(Url, State) ->
 	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
 	    Links = ebot_html_util:get_links(Body, Url),
 	    analyze_url_body_links(Url, Links, State),
-	    SendBodyToMqOption = get_config(send_body_to_mq, State),
+	    {ok, SendBodyToMqOption} = ebot_util:get_env(send_body_to_mq),
 	    case SendBodyToMqOption of
 		true ->
 		    NewBody= list_to_binary(Body);
@@ -288,11 +268,11 @@ analyze_url_body(Url, State) ->
 
 analyze_url_body_links(Url, Links, State) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
-    SaveReferralsOptions = get_config(save_referrals, State),
+    {ok, SaveReferralsOptions} = ebot_util:get_env(save_referrals),
     LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
     %% normalizing Links
     error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
-    NormalizeOptions = get_config(normalize_url, State),
+    {ok, NormalizeOptions} = ebot_util:get_env(normalize_url),
     NormalizedLinks = lists:map(
 			fun(U) -> 
 				ebot_url_util:normalize_url(U, NormalizeOptions)
@@ -390,22 +370,18 @@ crawl(Depth, State) ->
     analyze_url(Url, State),
     case ebot_web:crawlers_status() of
 	started ->
-	    timer:sleep( get_config(crawlers_sleep_time, State) ),
-	    %% retreive State
-	    %% crawler options could be updated and reloaded to the system
-	    crawl(Depth, get_state() );
+	    {ok, Sleep} = ebot_util:get_env(crawlers_sleep_time),
+	    timer:sleep( Sleep ),
+	    crawl(Depth, State );
 	stopped ->
 	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
 	    stop_crawler( {Depth, self()} )
     end.
 
-get_config(Option, State) ->
-    proplists:get_value(Option, State#state.config).
-
-fetch_url(Url, Command, State) ->
-    Http_header = get_config(http_header, State),
-    Request_options = get_config(request_options, State),
-    Http_options = get_config(http_options, State),
+fetch_url(Url, Command, _State) ->
+    {ok, Http_header} = ebot_util:get_env(web_http_header),
+    {ok, Request_options} = ebot_util:get_env(web_request_options),
+    {ok, Http_options} = ebot_util:get_env(web_http_options),
     error_logger:info_report({?MODULE, ?LINE, {fetch_url, Command, Url}}),
     try 
 	ebot_web_util:fetch_url(Url, Command, Http_header,Http_options,Request_options)
@@ -431,10 +407,10 @@ fetch_url_links(Url, State) ->
 is_valid_url(Url, State) when is_binary(Url) ->
     is_valid_url(binary_to_list(Url), State);
 
-is_valid_url(Url, State) ->
-    MimeAnyRE = get_config(mime_any_regexps, State),
-    UrlAllRE = get_config(url_all_regexps, State),
-    UrlAnyRE = get_config(url_any_regexps, State),
+is_valid_url(Url, _State) ->
+    {ok, MimeAnyRE} =  ebot_util:get_env(mime_any_regexps),
+    {ok, UrlAllRE} =  ebot_util:get_env(url_all_regexps),
+    {ok, UrlAnyRE} = ebot_util:get_env(url_any_regexps),
     ebot_util:is_valid_using_all_regexps(Url, UrlAllRE) andalso
 	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
 	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
@@ -444,7 +420,7 @@ start_crawler(Depth, State) ->
     {Depth, Pid}.
 
 start_crawlers(State) ->
-    Pools = get_config(crawler_pools, State),
+    {ok, Pools} = ebot_util:get_env(crawler_pools),
     
     NewCrawlers = lists:foldl(
 		    fun({Depth,Tot}, Crawlers) ->

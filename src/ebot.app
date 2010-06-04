@@ -43,11 +43,30 @@
 	   {channel_max       , 0}
 	  ]},
 	 {mq_durable_queues, false},
-	 {mq_tot_new_urls_queues, 4}
+	 {mq_tot_new_urls_queues, 4},
+
 	 %% ---------------------------------------------------------
 	 %% WEB
 	 %% ---------------------------------------------------------
 
+	 {web_http_header, [
+			    {"User-Agent", "Mozilla/5.0 ebot/0.3"},
+			    {"Accept-Charset", "utf-8"},
+			    {"Accept", "text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8"},
+			    {"Accept-Language", "en-us,en;q=0.5"}
+			   ]},
+	 {web_http_options, [
+			     {autoredirect, true}, 
+			     {timeout, 10000}
+			    ]},
+	 {web_request_options, [
+			        %{proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
+				{proxy, noproxy}
+			       ]}
+	 %% ---------------------------------------------------------
+	 %% CRAWLER
+	 %% ---------------------------------------------------------
+	 
 
 	 %% END ENV
 	]
