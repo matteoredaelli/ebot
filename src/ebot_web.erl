@@ -11,11 +11,14 @@
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, 5000).
 
+-include("ebot.hrl").
+
 -behaviour(gen_server).
 
 %% API
 -export([
 	 analyze_url/1,
+	 analyze_url_body_plugins/2,
 	 check_recover_crawlers/0,
 	 crawl/1,
 	 crawlers_status/0,
@@ -239,7 +242,8 @@ analyze_url_header(Url) ->
 analyze_url_body(Url) ->
     case try_fetch_url(Url, get) of
 	{ok, {_Status, _Headers, Body}} ->
-	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
+	    spawn(?MODULE, analyze_url_body_plugins, [Url, Body]),
+	    error_logger:info_report({?MODULE, ?LINE, {analyze_body_plugins, Url}}),
 	    Links = ebot_html_util:get_links(Body, Url),
 	    analyze_url_body_links(Url, Links),
 	    {ok, SendBodyToMqOption} = ebot_util:get_env(send_body_to_mq),
@@ -309,10 +313,20 @@ analyze_url_body_links(Url, Links) ->
       NotVisitedLinks),
     %% UPDATE ebot-body-visited
     Options = [{update_field_timestamp, <<"ebot_body_visited">>},
-	       {update_field_key_value, <<"links_counts">>, LinksCount}
+	       {update_field_key_value, <<"ebot_links_count">>, LinksCount}
 	      ],
     ebot_db:update_url(Url, Options),
     ok.
+
+analyze_url_body_plugins(Url, Body) ->
+    Options = lists:foldl(
+	     fun({Module, Function}, OptList) ->
+		     error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_plugins, Url, Module, Function}}),
+		     lists:append(Module:Function(Body, Url), OptList) end,
+	     [],
+	     ?EBOT_BODY_ANALYZER_PLUGINS
+	    ),
+    ebot_db:update_url(Url, Options).
 
 analyze_url_from_url_status(Url, not_found) ->
     ebot_db:open_or_create_url(Url),

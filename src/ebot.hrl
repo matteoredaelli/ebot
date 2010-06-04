@@ -14,4 +14,5 @@
 %% -----------------------------------------------------------------------
 -define(EBOT_WEB_TIMEOUT, 5000).
 
+-define(EBOT_BODY_ANALYZER_PLUGINS, [{ebot_plugin_body_analyzer_sample,analyze_url_body}]).
 
