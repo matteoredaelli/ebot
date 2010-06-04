@@ -67,6 +67,9 @@
 	 %% CRAWLER
 	 %% ---------------------------------------------------------
 	 
+	 %% TODO: default parameters should be here, 
+	 %% I'll copy them from ebot_local.config when ebot development
+	 %% will be more quiet... 
 
 	 %% END ENV
 	]
