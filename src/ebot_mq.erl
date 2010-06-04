@@ -39,7 +39,6 @@
 
 -record(state, {
 	  channel,
-	  config,
 	  connection,
 	  exchange = ?EBOT_EXCHANGE
 	 }).
@@ -81,34 +80,28 @@ statistics() ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-   case ebot_util:load_settings(?MODULE) of
-	{ok, Config} ->
-	   Durable = proplists:get_value(durable_queues, Config),
-	   Params = proplists:get_value(amqp_params, Config),
-	   AMQParams = #amqp_params{
-	     username =  proplists:get_value(username, Params),
-	     password =  proplists:get_value(password, Params),
-	     host =  proplists:get_value(host, Params),
-	     virtual_host =  proplists:get_value(virtual_host, Params),
-	     channel_max =  proplists:get_value(channel_max, Params)
-	     },
-	   case ampq_connect_and_get_channel(AMQParams, Durable) of
-	       {ok, {Connection, Channel}} ->
-		   TotQueues = proplists:get_value(tot_new_urls_queues, Config),
-		   amqp_setup_new_url_consumers(Channel, TotQueues, Durable),
-		   amqp_setup_processed_consumer(Channel, Durable),
-		   amqp_setup_refused_consumer(Channel, Durable),
-		   {ok, #state{
-		      channel = Channel,
-		      connection = Connection,
-		      config=Config}
-		   };
-	       _Else ->
-		   {error, amqp_cannot_connect_or_get_channel}
-	   end;
-	Else ->
-	   error_logger:error_report({?MODULE, ?LINE, {cannot_load_configuration_file, Else}}),
-	    {error, cannot_load_configuration}
+    {ok, Durable} = ebot_util:get_env(mq_durable_queues),
+    {ok, Params} = ebot_util:get_env(mq_connection_params),
+    AMQParams = #amqp_params{
+      username =  proplists:get_value(username, Params),
+      password =  proplists:get_value(password, Params),
+      host =  proplists:get_value(host, Params),
+      virtual_host =  proplists:get_value(virtual_host, Params),
+      channel_max =  proplists:get_value(channel_max, Params)
+     },
+    case ampq_connect_and_get_channel(AMQParams, Durable) of
+	{ok, {Connection, Channel}} ->
+	    {ok, TotQueues} = ebot_util:get_env(mq_tot_new_urls_queues),
+	    amqp_setup_new_url_consumers(Channel, TotQueues, Durable),
+	    amqp_setup_processed_consumer(Channel, Durable),
+	    amqp_setup_refused_consumer(Channel, Durable),
+	    {ok, #state{
+	       channel = Channel,
+	       connection = Connection
+	      }
+	    };
+	_Else ->
+	    {error, amqp_cannot_connect_or_get_channel}
     end.
 
 %%--------------------------------------------------------------------
@@ -128,13 +121,13 @@ handle_call({get_new_url, Depth}, _From, State) ->
 
 handle_call({statistics}, _From, State) ->
     Channel =  State#state.channel,
-    Tot = get_config(tot_new_urls_queues, State),
+    {ok, TotQueues} = ebot_util:get_env(mq_tot_new_urls_queues),
     Reply = lists:map(
 	       fun(N) -> 
 		       Q = get_new_queue_name(N), 
 		       queue_statistics(Channel, Q)
 	       end,
-	      lists:seq(0, Tot)
+	      lists:seq(0, TotQueues)
 	     ),
     {reply, Reply, State};
 
@@ -198,9 +191,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-
-get_config(Option, State) ->
-    proplists:get_value(Option, State#state.config).
 
 ampq_connect_and_get_channel(Params, Durable) ->
     %% Start a connection to the server
