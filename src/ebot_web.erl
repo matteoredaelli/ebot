@@ -265,7 +265,6 @@ analyze_url_body(Url) ->
 
 analyze_url_body_links(Url, Links) ->
     error_logger:info_report({?MODULE, ?LINE, {getting_links_of, Url}}),
-    {ok, SaveReferralsOptions} = ebot_util:get_env(save_referrals),
     LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
     %% normalizing Links
     error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
@@ -298,15 +297,13 @@ analyze_url_body_links(Url, Links) ->
 	      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 	      ebot_db:open_or_create_url(U),
 	      ebot_cache:add_new_url(U),
-	      IsInternalLink = ebot_url_util:is_same_domain(Url, U),
-	      case (IsInternalLink andalso lists:member(internal,SaveReferralsOptions)) orelse
-		  (not IsInternalLink andalso lists:member(external,SaveReferralsOptions))
-	      of
-		  true ->
+	      case  needed_update_url_referral(
+		      ebot_url_util:is_same_main_domain(Url, U),
+		      ebot_url_util:is_same_domain(Url, U)) of
+		  true ->	    
 		      Options = [{referral, Url}],
 		      ebot_db:update_url(U, Options);
 		  false ->
-		      %% internal link, skipping adding referral
 		      ok
 	      end
       end,
@@ -385,32 +382,6 @@ crawl(Depth) ->
 	    stop_crawler( {Depth, self()} )
     end.
 
-try_fetch_url(Url, Command) ->
-    {ok, Http_header} = ebot_util:get_env(web_http_header),
-    {ok, Request_options} = ebot_util:get_env(web_request_options),
-    {ok, Http_options} = ebot_util:get_env(web_http_options),
-    error_logger:info_report({?MODULE, ?LINE, {fetch_url, Command, Url}}),
-    try 
-	ebot_web_util:fetch_url(Url, Command, Http_header,Http_options,Request_options)
-    catch
-	Reason -> 
-	    error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, cannot_fetch_url, Reason}}),
-	    {error, Reason}
-    end.
-
-try_fetch_url_links(Url) ->
-    case fetch_url(Url, get) of
-	{ok, {_Status, _Headers, Body}} ->
-	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
-	    {ok, ebot_html_util:get_links(Body, Url)};
-	{error, Reason} ->
-	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
-	    {error, Reason};
-	Other ->
-	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, unknown_error, Other}}),
-	    Other
-    end.
-
 is_valid_url(Url) when is_binary(Url) ->
     is_valid_url(binary_to_list(Url));
 
@@ -421,7 +392,23 @@ is_valid_url(Url) ->
     ebot_util:is_valid_using_all_regexps(Url, UrlAllRE) andalso
 	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
 	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
-	    
+
+needed_update_url_referral(SameMainDomain, SameDomain) ->
+    {ok, SaveReferralsOptions} = ebot_util:get_env(save_referrals),
+    lists:any(
+      fun(Option) -> needed_update_url_referral(SameMainDomain, SameDomain, Option) end,
+      SaveReferralsOptions
+     ).
+
+needed_update_url_referral(false, false, external) ->	    
+    true;
+needed_update_url_referral(true, false, subdomain) ->	    
+    true;
+needed_update_url_referral(_, true, domain) ->
+    true;
+needed_update_url_referral(_,_,_) ->
+    false.
+
 start_crawler(Depth) ->
     Pid = spawn( ?MODULE, crawl, [Depth]),
     {Depth, Pid}.
@@ -447,6 +434,32 @@ start_crawlers(Depth, Total) ->
       fun(_) -> start_crawler(Depth) end,
       lists:seq(1,Total)).
 
+
+try_fetch_url(Url, Command) ->
+    {ok, Http_header} = ebot_util:get_env(web_http_header),
+    {ok, Request_options} = ebot_util:get_env(web_request_options),
+    {ok, Http_options} = ebot_util:get_env(web_http_options),
+    error_logger:info_report({?MODULE, ?LINE, {fetch_url, Command, Url}}),
+    try 
+	ebot_web_util:fetch_url(Url, Command, Http_header,Http_options,Request_options)
+    catch
+	Reason -> 
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, cannot_fetch_url, Reason}}),
+	    {error, Reason}
+    end.
+
+try_fetch_url_links(Url) ->
+    case fetch_url(Url, get) of
+	{ok, {_Status, _Headers, Body}} ->
+	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
+	    {ok, ebot_html_util:get_links(Body, Url)};
+	{error, Reason} ->
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
+	    {error, Reason};
+	Other ->
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, unknown_error, Other}}),
+	    Other
+    end.
 
 %%====================================================================
 %% EUNIT TESTS

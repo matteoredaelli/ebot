@@ -19,6 +19,8 @@
 %%--------------------------------------------------------------------
 
 analyze_url_body(_Body, _Url) ->
+    %% add here you logic
+    %% 
     [
      {update_field_key_value, <<"sample_key">>, 1}
      %% {update_field_timestamp,<<"ebot_timestamp_key">>},

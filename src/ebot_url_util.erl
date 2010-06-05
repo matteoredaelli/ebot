@@ -14,6 +14,8 @@
 	 filter_external_links/2,
 	 is_external_link/2,
 	 is_same_domain/2,
+	 is_same_main_domain/2,
+	 is_subdomain/2,
 	 is_valid_url_using_all_known_invalid_regexps/1,
 	 is_valid_url_using_any_mime_regexps/2,
 	 is_valid_url_using_any_url_regexps/2,
@@ -21,7 +23,8 @@
 	 parse_url/1,
 	 url_context/1,
 	 url_depth/1,
-	 url_domain/1
+	 url_domain/1,
+	 url_main_domain/1
 	]).
 
 %%--------------------------------------------------------------------
@@ -51,6 +54,14 @@ filter_external_links(Url, Links) ->
 
 is_same_domain(Url1, Url2) ->
     url_domain(Url1) == url_domain(Url2).
+
+is_same_main_domain(Url1, Url2) ->
+    %% error_logger:info_report({?MODULE, ?LINE, {is_same_main_domain, Url1, Url2}}),
+    url_main_domain(Url1) == url_main_domain(Url2).
+
+is_subdomain(Url1, Url2) ->
+    is_same_main_domain(Url1, Url2)  andalso
+	not (url_domain(Url1) == url_domain(Url2)).
 			  
 is_external_link(Url1, Url2) ->
     not is_same_domain(Url1, Url2).
@@ -123,6 +134,19 @@ url_domain(Url) ->
     {Domain,_,_,_} = ebot_url_util:parse_url(Url),
     Domain.
    
+url_main_domain(Url) ->
+    %% error_logger:info_report({?MODULE, ?LINE, {url_main_domain, Url, start}}),
+    {Domain,_,_,_} = ebot_url_util:parse_url(Url),
+    [Protocol, Host] = re:split(Domain, "//", [{return,list}]),
+    List = re:split(Host, "[.]", [{return,list}]),
+    case lists:reverse(List) of
+	[Dom1, Dom2|_] ->
+	    Protocol ++ "//" ++ Dom2 ++ "." ++ Dom1;
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {url_main_domain, Url, too_short_url, Else}}),
+	    {error, too_short_url}
+    end.
+
 %%====================================================================
 %% EBOT_Url specific Internal functions
 %%====================================================================
@@ -257,14 +281,29 @@ ebot_url_test() ->
      ?assertEqual(Utest, url_using_max_depth(Udir11, 2)),
      ?assertEqual(Udir1, url_using_max_depth(Udir1, 3)),
      ?assertEqual(Udir11, url_using_max_depth(Udir11, 4)),
+
      ?assertEqual(true, is_external_link( <<"http://github.com/matteoredaelli/ebot">>,  
 					  <<"http://www.redaelli.org/">>)),
      ?assertEqual(false, is_external_link( <<"http://www.redaelli.org/matteo/">>,  
 					  <<"http://www.redaelli.org/">>)),
+
      ?assertEqual(false, is_same_domain( <<"http://github.com/matteoredaelli/ebot">>,  
 					  <<"http://www.redaelli.org/">>)),
      ?assertEqual(true, is_same_domain( <<"http://www.redaelli.org/matteo/">>,  
-					  <<"http://www.redaelli.org/">>))
+					  <<"http://www.redaelli.org/">>)),
+
+     ?assertEqual( "http://redaelli.org", url_main_domain(<<"http://www.redaelli.org/aa/">>)),
+     ?assertEqual( "http://redaelli.org", url_main_domain(<<"http://www.matteo.redaelli.org/aa/a">>)),
+     ?assertEqual( "http://redaelli.org", url_main_domain(<<"http://redaelli.org/aa/a">>)),
+
+     ?assertEqual(true, is_same_main_domain( <<"http://www.redaelli.org/matteo/">>,  
+					     <<"http://matteo.redaelli.org/">>)),
+     ?assertEqual(true, is_same_main_domain( <<"http://redaelli.org/matteo/">>,  
+					     <<"http://matteo.redaelli.org/">>)),
+     ?assertEqual(true, is_same_main_domain( <<"http://redaelli.org/matteo/">>,  
+					     <<"http://www.matteo.redaelli.org/">>)),
+     ?assertEqual(false, is_same_main_domain( <<"http://redaelli.org/matteo/">>,  
+					     <<"http://matteoredaelli.wordpress.com/">>))
     ].
 
 -endif.
