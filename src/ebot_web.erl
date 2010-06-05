@@ -400,6 +400,8 @@ needed_update_url_referral(SameMainDomain, SameDomain) ->
       SaveReferralsOptions
      ).
 
+%% needed_update_url_referral(SameMainDomain, SameDomain, domain|subdomain|external)
+
 needed_update_url_referral(false, false, external) ->	    
     true;
 needed_update_url_referral(true, false, subdomain) ->	    
