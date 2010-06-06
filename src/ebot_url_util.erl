@@ -61,7 +61,7 @@ is_same_main_domain(Url1, Url2) ->
 
 is_subdomain(Url1, Url2) ->
     is_same_main_domain(Url1, Url2)  andalso
-	not (url_domain(Url1) == url_domain(Url2)).
+	url_domain(Url1) =/= url_domain(Url2).
 			  
 is_external_link(Url1, Url2) ->
     not is_same_domain(Url1, Url2).
@@ -296,14 +296,23 @@ ebot_url_test() ->
      ?assertEqual( "http://redaelli.org", url_main_domain(<<"http://www.matteo.redaelli.org/aa/a">>)),
      ?assertEqual( "http://redaelli.org", url_main_domain(<<"http://redaelli.org/aa/a">>)),
 
-     ?assertEqual(true, is_same_main_domain( <<"http://www.redaelli.org/matteo/">>,  
-					     <<"http://matteo.redaelli.org/">>)),
-     ?assertEqual(true, is_same_main_domain( <<"http://redaelli.org/matteo/">>,  
-					     <<"http://matteo.redaelli.org/">>)),
-     ?assertEqual(true, is_same_main_domain( <<"http://redaelli.org/matteo/">>,  
-					     <<"http://www.matteo.redaelli.org/">>)),
-     ?assertEqual(false, is_same_main_domain( <<"http://redaelli.org/matteo/">>,  
-					     <<"http://matteoredaelli.wordpress.com/">>))
+     ?assertEqual(true, is_same_main_domain(<<"http://www.redaelli.org/matteo/">>,  
+					    <<"http://matteo.redaelli.org/">>)),
+     ?assertEqual(true, is_same_main_domain(<<"http://redaelli.org/matteo/">>,  
+					    <<"http://matteo.redaelli.org/">>)),
+     ?assertEqual(true, is_same_main_domain(<<"http://redaelli.org/matteo/">>,  
+					    <<"http://www.matteo.redaelli.org/">>)),
+     ?assertEqual(false, is_same_main_domain(<<"http://redaelli.org/matteo/">>,  
+					     <<"http://matteoredaelli.wordpress.com/">>)),
+     
+     ?assertEqual(true, is_subdomain(<<"http://redaelli.org/matteo/">>, 
+				     <<"http://www.matteo.redaelli.org/">>)),
+     ?assertEqual(true, is_subdomain(<<"http://aaa.redaelli.org/matteo/">>,  
+				     <<"http://www.matteo.redaelli.org/">>)),
+     ?assertEqual(false, is_subdomain(<<"http://www.redaelli.org/matteo/blog/">>,  
+				      <<"http://www.redaelli.org/">>)),
+     ?assertEqual(false, is_subdomain(<<"http://www.redaelli.org/matteo/">>,  
+				      <<"http://matteoredaelli.wordpress.com/">>))
     ].
 
 -endif.
