@@ -268,9 +268,10 @@ analyze_url_body_links(Url, Links) ->
     LinksCount = length(ebot_url_util:filter_external_links(Url, Links)),
     %% normalizing Links
     error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
-    {ok, NormalizeOptions} = ebot_util:get_env(normalize_url),
     NormalizedLinks = lists:map(
 			fun(U) -> 
+				{ok, ListNormalizeOptions} = ebot_util:get_env(normalize_url_list),
+				{ok, NormalizeOptions} = get_env_normalize_url(Url, ListNormalizeOptions),
 				ebot_url_util:normalize_url(U, NormalizeOptions)
 			end,
 			Links),
@@ -381,6 +382,16 @@ crawl(Depth) ->
 	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
 	    stop_crawler( {Depth, self()} )
     end.
+
+get_env_normalize_url(Url, [{RE,Options}|L]) ->
+    case re:run(Url, RE, [{capture, none},caseless]) of
+	match ->
+	    {ok, Options};
+	nomatch ->
+	    get_env_normalize_url(Url, L)
+    end;
+get_env_normalize_url(_Url, []) ->
+    undefined.
 
 is_valid_url(Url) when is_binary(Url) ->
     is_valid_url(binary_to_list(Url));
