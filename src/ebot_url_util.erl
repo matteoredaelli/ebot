@@ -181,6 +181,10 @@ normalize_path([], {_,_}) ->
     error_logger:info_report({?MODULE, ?LINE, {normalize_path, too_many_backs}}),
     {error, too_many_backs}.
 
+normalize_url_parsing_options(Url, [{plugin, Module, Function}|Options]) ->
+    NewUrl = Module:Function(Url),
+    normalize_url_parsing_options(NewUrl, Options);
+
 normalize_url_parsing_options(Url, [{replace_string, RElist}|Options]) ->
     NewUrl = ebot_util:string_replacements_using_regexps(Url, RElist),
     normalize_url_parsing_options(NewUrl, Options);
