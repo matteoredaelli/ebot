@@ -2,7 +2,7 @@
 
 {application, ebot,
  [{description, "ebot"},
-  {vsn, "0.4-snapshot"},
+  {vsn, "0.4"},
   {modules, [
     ebot,
     ebot_app,
@@ -55,7 +55,7 @@
 	 %% ---------------------------------------------------------
 
 	 {web_http_header, [
-			    {"User-Agent", "Mozilla/5.0 ebot/0.4-snapshot"},
+			    {"User-Agent", "Mozilla/5.0 ebot/0.4"},
 			    {"Accept-Charset", "utf-8"},
 			    {"Accept", "text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8"},
 			    {"Accept-Language", "en-us,en;q=0.5"}
