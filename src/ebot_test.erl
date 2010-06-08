@@ -10,6 +10,7 @@
 -export([
 	 test/0,
 	 test1/0,
+	 test2/0,
 	 test_oss/0
 	]).
 
@@ -21,6 +22,10 @@ test() ->
 
 test1() ->
     Urls = [ <<"http://www.gitorious.org/">> ],
+    test_crawlers_with_urls(Urls).
+
+test2() ->
+    Urls = [ <<"http://code.google.com/">> ],
     test_crawlers_with_urls(Urls).
 
 test_oss() ->
