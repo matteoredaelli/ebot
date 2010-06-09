@@ -159,7 +159,8 @@ handle_call(_Request, _From, State) ->
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast({add_new_url, Url}, State) ->
-    Depth = ebot_url_util:url_depth(Url),
+    {ok, {Module, Function}} = ebot_util:get_env(mq_url_priority_plugin),
+    Depth = Module:Function(Url),
     Key = get_new_queue_name(Depth),
     amqp_send_message(Key, Url, State),
     {noreply, State};

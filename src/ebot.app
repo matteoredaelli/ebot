@@ -49,6 +49,12 @@
 	  ]},
 	 {mq_durable_queues, false},
 	 {mq_tot_new_urls_queues, 4},
+	 
+	 %% {mq_url_priority_plugin, {Module, Fun/1}}
+	 %% Fun:
+	 %%   input: url
+	 %%   output: N >= 0, N=0 means highest priority
+	 {mq_url_priority_plugin, {ebot_url_util, url_depth}},
 
 	 %% ---------------------------------------------------------
 	 %% WEB
