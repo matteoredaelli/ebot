@@ -33,9 +33,8 @@
 	 is_same_domain/2,
 	 is_same_main_domain/2,
 	 is_subdomain/2,
-	 is_valid_url_using_all_known_invalid_regexps/1,
-	 is_valid_url_using_any_mime_regexps/2,
-	 is_valid_url_using_any_url_regexps/2,
+	 is_valid_link/1,
+	 is_valid_url/1,
 	 normalize_url/2,
 	 parse_url/1,
 	 url_context/1,
@@ -83,23 +82,21 @@ is_subdomain(Url1, Url2) ->
 is_external_link(Url1, Url2) ->
     not is_same_domain(Url1, Url2).
 
-is_valid_url_using_all_known_invalid_regexps(Url) ->
-    RElist = [
-	      {nomatch, "feed:"},
-	      {nomatch, "ftp:"},
-	      {nomatch, "javascript:"},
-	      {nomatch, "mailto:"},
-	      {nomatch, "news:"}
-	     ],
-    ebot_util:is_valid_using_all_regexps(Url, RElist).
 
-is_valid_url_using_any_mime_regexps(Url, RElist) -> 
-    Mime = mochiweb_util:guess_mime(Url),
-    ebot_util:is_valid_using_any_regexps(Mime, RElist).
+is_valid_link(Url) when is_binary(Url) ->
+    is_valid_link(binary_to_list(Url));
 
-is_valid_url_using_any_url_regexps(Url, RElist) -> 
-    ebot_util:is_valid_using_any_regexps(Url, RElist).
- 
+is_valid_link(Url) ->
+    {ok, Options} =  ebot_util:get_env(is_valid_link),
+    is_valid_link(Url, Options).
+
+is_valid_url(Url) when is_binary(Url) ->
+    is_valid_url(binary_to_list(Url));
+
+is_valid_url(Url) ->
+    {ok, Options} =  ebot_util:get_env(is_valid_url),
+    is_valid_url(Url, Options).
+
 %%--------------------------------------------------------------------
 %% Function: normalize_url/2
 %% Input: an url and its options (see config files)
@@ -198,6 +195,23 @@ url_main_domain(Url) ->
 %%====================================================================
 %% EBOT_Url specific Internal functions
 %%====================================================================
+
+is_valid_link(Url, [{validate_all_url_regexps, RElist}|L]) ->
+    ebot_util:is_valid_using_all_regexps(Url, RElist) andalso is_valid_link(Url, L);
+is_valid_link(Url, [{validate_any_url_regexps, RElist}|L]) ->
+    ebot_util:is_valid_using_any_regexps(Url, RElist) andalso is_valid_link(Url, L);
+is_valid_link(_Url, []) ->
+    true.
+ 
+is_valid_url(Url, [{validate_any_mime_regexps, RElist}|L]) ->
+    Mime = mochiweb_util:guess_mime(Url),
+    ebot_util:is_valid_using_any_regexps(Mime, RElist) andalso is_valid_url(Url, L);
+is_valid_url(Url, [{validate_all_url_regexps, RElist}|L]) ->
+    ebot_util:is_valid_using_all_regexps(Url, RElist) andalso is_valid_url(Url, L);
+is_valid_url(Url, [{validate_any_url_regexps, RElist}|L]) ->
+    ebot_util:is_valid_using_any_regexps(Url, RElist) andalso is_valid_url(Url, L);
+is_valid_url(_Url, []) ->
+    true.
 
 normalize_path(Path) ->
     Tokens = lists:reverse(string:tokens(Path,"/")),

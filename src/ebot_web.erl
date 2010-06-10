@@ -287,7 +287,7 @@ analyze_url_body_links(Url, Links) ->
     error_logger:info_report({?MODULE, ?LINE, {normalizing_links_of, Url}}),
     NormalizedLinks = lists:map(
 			fun(U) -> 
-				{ok, ListNormalizeOptions} = ebot_util:get_env(normalize_url_list),
+				{ok, ListNormalizeOptions} = ebot_util:get_env(normalize_url),
 				{ok, NormalizeOptions} = get_env_normalize_url(Url, ListNormalizeOptions),
 				ebot_url_util:normalize_url(U, NormalizeOptions)
 			end,
@@ -304,7 +304,7 @@ analyze_url_body_links(Url, Links) ->
     NotVisitedLinks = lists:filter(
 			fun(U) -> 
 				(not ebot_cache:is_visited_url(U)) andalso
-				    is_valid_url(U)
+				    ebot_url_util:is_valid_url(U)
 			end,
 			UniqueLinks),
     
@@ -409,17 +409,6 @@ get_env_normalize_url(Url, [{RE,Options}|L]) ->
     end;
 get_env_normalize_url(_Url, []) ->
     undefined.
-
-is_valid_url(Url) when is_binary(Url) ->
-    is_valid_url(binary_to_list(Url));
-
-is_valid_url(Url) ->
-    {ok, MimeAnyRE} =  ebot_util:get_env(mime_any_regexps),
-    {ok, UrlAllRE} =  ebot_util:get_env(url_all_regexps),
-    {ok, UrlAnyRE} = ebot_util:get_env(url_any_regexps),
-    ebot_util:is_valid_using_all_regexps(Url, UrlAllRE) andalso
-	ebot_util:is_valid_using_any_regexps(Url, UrlAnyRE) andalso
-	ebot_url_util:is_valid_url_using_any_mime_regexps(Url, MimeAnyRE).
 
 needed_update_url_referral(SameMainDomain, SameDomain) ->
     {ok, SaveReferralsOptions} = ebot_util:get_env(save_referrals),

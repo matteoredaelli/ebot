@@ -46,7 +46,7 @@ get_links(Html, ParentUrl) ->
 	     fun(Token, Links) -> 
 		     case Token of 
 			 {start_tag,<<"a">>,[{<<"href">>,Url}],false} ->
-			     case ebot_url_util:is_valid_url_using_all_known_invalid_regexps(Url) of
+			     case ebot_url_util:is_valid_link(Url) of
 				 true ->
 				     AbsoluteUrl = ebot_url_util:convert_to_absolute_url( 
 						     binary_to_list(Url), 
