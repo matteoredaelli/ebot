@@ -203,13 +203,19 @@ is_valid_link(Url, [{validate_any_url_regexps, RElist}|L]) ->
 is_valid_link(_Url, []) ->
     true.
  
-is_valid_url(Url, [{validate_any_mime_regexps, RElist}|L]) ->
+is_valid_url(Url, [{validate_any_mime_regexps, RElist}|Options]) ->
     Mime = mochiweb_util:guess_mime(Url),
-    ebot_util:is_valid_using_any_regexps(Mime, RElist) andalso is_valid_url(Url, L);
-is_valid_url(Url, [{validate_all_url_regexps, RElist}|L]) ->
-    ebot_util:is_valid_using_all_regexps(Url, RElist) andalso is_valid_url(Url, L);
-is_valid_url(Url, [{validate_any_url_regexps, RElist}|L]) ->
-    ebot_util:is_valid_using_any_regexps(Url, RElist) andalso is_valid_url(Url, L);
+    ebot_util:is_valid_using_any_regexps(Mime, RElist) andalso 
+	is_valid_url(Url, Options);
+is_valid_url(Url, [{validate_all_url_regexps, RElist}|Options]) ->
+    ebot_util:is_valid_using_all_regexps(Url, RElist) andalso 
+	is_valid_url(Url, Options);
+is_valid_url(Url, [{validate_any_url_regexps, RElist}|Options]) ->
+    ebot_util:is_valid_using_any_regexps(Url, RElist) andalso 
+	is_valid_url(Url, Options);
+is_valid_url(Url, [{plugin, Module, Function}|Options]) ->
+    Module:Function(Url)  andalso 
+	is_valid_url(Url, Options);
 is_valid_url(_Url, []) ->
     true.
 
