@@ -100,18 +100,49 @@ is_valid_url_using_any_mime_regexps(Url, RElist) ->
 is_valid_url_using_any_url_regexps(Url, RElist) -> 
     ebot_util:is_valid_using_any_regexps(Url, RElist).
  
-%% options: 
-%%   without_internal_links
-%%   without_queries
+%%--------------------------------------------------------------------
+%% Function: normalize_url/2
+%% Input: an url and its options (see config files)
+%% Description: converts relative urls to absolute
+%%--------------------------------------------------------------------
+
 normalize_url(Url, Options) when is_binary(Url) ->
     NewUrl = normalize_url(binary_to_list(Url), Options),
     list_to_binary(NewUrl);
 
-normalize_url(Url, Options) ->
-    %% sometimes I have found some spaces at the end ...
-    U1 = string:strip(Url,  both, $ ),
-    U2 = normalize_url_parsing_options(U1, Options),
-    U2.
+normalize_url(Url, [{plugin, Module, Function}|Options]) ->
+    NewUrl = Module:Function(Url),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [{replace_string, RElist}|Options]) ->
+    NewUrl = ebot_util:string_replacements_using_regexps(Url, RElist),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [add_final_slash|Options]) ->
+    NewUrl = url_add_final_slash(Url),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [{max_depth,MaxDepth}|Options]) ->
+    NewUrl = url_using_max_depth(Url, MaxDepth),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [strip|Options]) ->
+    NewUrl =  string:strip(Url,  both, $ ),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [without_internal_links|Options]) ->
+    NewUrl = url_without_internal_links(Url),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [without_queries|Options]) ->
+    NewUrl = url_without_queries(Url),
+    normalize_url(NewUrl, Options);
+
+normalize_url(Url, [Opt|Options]) ->
+    error_logger:error_report({?MODULE, ?LINE, {normalize_url, Url, unknown_option, Opt}}),
+    normalize_url(Url, Options);
+normalize_url(Url, []) ->
+    Url.
 
 parse_path(Path) ->
     Sep = string:rstr(Path,"/"),
@@ -197,41 +228,6 @@ normalize_path([], {0,NewList}) ->
 normalize_path([], {_,_}) ->
     error_logger:info_report({?MODULE, ?LINE, {normalize_path, too_many_backs}}),
     {error, too_many_backs}.
-
-normalize_url_parsing_options(Url, [{plugin, Module, Function}|Options]) ->
-    NewUrl = Module:Function(Url),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [{replace_string, RElist}|Options]) ->
-    NewUrl = ebot_util:string_replacements_using_regexps(Url, RElist),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [add_final_slash|Options]) ->
-    NewUrl = url_add_final_slash(Url),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [{max_depth,MaxDepth}|Options]) ->
-    NewUrl = url_using_max_depth(Url, MaxDepth),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [to_lower_case|Options]) ->
-    NewUrl = string:to_lower(Url),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [without_internal_links|Options]) ->
-    NewUrl = url_without_internal_links(Url),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [without_queries|Options]) ->
-    NewUrl = url_without_queries(Url),
-    normalize_url_parsing_options(NewUrl, Options);
-
-normalize_url_parsing_options(Url, [Opt|Options]) ->
-    io:format("normalize_url_parsing_options: skipping unknown option '~ts'", 
-	      [atom_to_list(Opt)]),
-    normalize_url_parsing_options(Url, Options);
-normalize_url_parsing_options(Url, []) ->
-    Url.
 
 url_add_final_slash(Url) ->
     case re:run(Url, "^http://.+/") of
