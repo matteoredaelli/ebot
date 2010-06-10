@@ -2,7 +2,7 @@
 
 {application, ebot,
  [{description, "ebot"},
-  {vsn, "0.4"},
+  {vsn, "0.5-snapshot"},
   {modules, [
     ebot,
     ebot_app,
@@ -54,6 +54,8 @@
 	 %% Fun:
 	 %%   input: url
 	 %%   output: N >= 0, N=0 means highest priority
+	 %%
+	 %% The default function is url_depth that return the depth os thepath of the url
 	 {mq_url_priority_plugin, {ebot_url_util, url_depth}},
 
 	 %% ---------------------------------------------------------
@@ -61,7 +63,7 @@
 	 %% ---------------------------------------------------------
 
 	 {web_http_header, [
-			    {"User-Agent", "Mozilla/5.0 ebot/0.4"},
+			    {"User-Agent", "Mozilla/5.0 ebot/0.5-snapshot"},
 			    {"Accept-Charset", "utf-8"},
 			    {"Accept", "text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8"},
 			    {"Accept-Language", "en-us,en;q=0.5"}
@@ -71,8 +73,8 @@
 			     {timeout, 10000}
 			    ]},
 	 {web_request_options, [
-			        %{proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
-				{proxy, noproxy}
+			        {proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
+				%{proxy, noproxy}
 			       ]}
 	 %% ---------------------------------------------------------
 	 %% CRAWLER
