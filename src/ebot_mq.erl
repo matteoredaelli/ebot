@@ -28,8 +28,9 @@
 
 -define(SERVER, ?MODULE).
 -define(EBOT_EXCHANGE, <<"EBOT">>).
--define(EBOT_QUEUE_URL_NEW, <<"EBOT_QUEUE_URL_NEW">>).
--define(EBOT_QUEUE_URL_REFUSED, <<"EBOT_QUEUE_URL_REFUSED">>).
+%-define(EBOT_QUEUE_URL_NEW, <<"EBOT_QUEUE_URL_NEW">>).
+%-define(EBOT_QUEUE_URL_REFUSED, <<"EBOT_QUEUE_URL_REFUSED">>).
+
 -define(EBOT_KEY_URL_NEW, <<"ebot.url.new">>).
 -define(EBOT_KEY_URL_PROCESSED, <<"ebot.url.processed">>).
 -define(EBOT_KEY_URL_REFUSED, <<"ebot.url.refused">>).
@@ -245,7 +246,7 @@ amqp_send_message(RoutingKey, Payload, State) ->
 
     Msg = #amqp_msg{
       payload = Payload
-      %% uncomment the following row if you want a durable message
+      %% TODO: uncomment the following row if you want a durable message
       %%, props = #'P_basic'{delivery_mode=2}
      },
     case Result = amqp_channel:cast(Channel, BasicPublish, _MsgPayload = Msg) of
@@ -263,8 +264,6 @@ amqp_setup_new_url_consumers(Channel, Tot, Durable) ->
 	      amqp_setup_consumer(
 		Channel,
 		KeyQueue,
-		?EBOT_EXCHANGE,
-		KeyQueue,
 		Durable
 	       ) end,
       lists:seq(0, Tot)
@@ -274,8 +273,6 @@ amqp_setup_processed_consumer(Channel, Durable) ->
     amqp_setup_consumer(
       Channel,
       ?EBOT_KEY_URL_PROCESSED,
-      ?EBOT_EXCHANGE,
-      ?EBOT_KEY_URL_PROCESSED,
       Durable
      ).
 
@@ -283,18 +280,17 @@ amqp_setup_refused_consumer(Channel, Durable) ->
     amqp_setup_consumer(
       Channel,
       ?EBOT_KEY_URL_REFUSED,
-      ?EBOT_EXCHANGE,
-      ?EBOT_KEY_URL_REFUSED,
       Durable
      ).
 
-queue_statistics(Channel, Q) ->
-    QueueDeclare = #'queue.declare'{queue=Q},
-    #'queue.declare_ok'{queue = Q,
-                        message_count = MessageCount,
-                        consumer_count = _ConsumerCount}
-	= amqp_channel:call(Channel, QueueDeclare),
-    {Q, MessageCount}.
+amqp_setup_consumer(Channel, QueueKey, Durable) ->
+    amqp_setup_consumer(
+      Channel,
+      QueueKey,
+      ?EBOT_EXCHANGE,
+      QueueKey,
+      Durable
+     ).
 
 amqp_setup_consumer(Channel, Q, X, Key, Durable) ->
     QueueDeclare = #'queue.declare'{queue=Q, durable=Durable},
@@ -310,17 +306,27 @@ amqp_setup_consumer(Channel, Q, X, Key, Durable) ->
                               routing_key = Key},
     #'queue.bind_ok'{} = amqp_channel:call(Channel, QueueBind).
 
-log(Key,Value) ->
-    error_logger:info_report({?MODULE, ?LINE, {Key,Value }}),
-    io:format("~p: ~p~n",[Key,Value]).
-
 get_new_queue_name(Depth) ->
+    get_queue_name_using_queue_depth(?EBOT_KEY_URL_NEW, Depth).
+
+get_queue_name_using_queue_depth(Queue, Depth) ->
     list_to_binary( 
-      binary_to_list(?EBOT_KEY_URL_NEW) ++ 
+      binary_to_list(Queue) ++ 
       "." ++ 
       integer_to_list(Depth)).
 
+queue_statistics(Channel, Q) ->
+    QueueDeclare = #'queue.declare'{queue=Q},
+    #'queue.declare_ok'{queue = Q,
+                        message_count = MessageCount,
+                        consumer_count = _ConsumerCount}
+	= amqp_channel:call(Channel, QueueDeclare),
+    {Q, MessageCount}.
 
+
+log(Key,Value) ->
+    error_logger:info_report({?MODULE, ?LINE, {Key,Value }}),
+    io:format("~p: ~p~n",[Key,Value]).
 
 %%====================================================================
 %% EUNIT TESTS
