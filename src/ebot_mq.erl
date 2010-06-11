@@ -244,11 +244,18 @@ amqp_send_message(RoutingKey, Payload, State) ->
     BasicPublish = #'basic.publish'{exchange = Exchange, 
 				    routing_key = RoutingKey},
 
-    Msg = #amqp_msg{
-      payload = Payload
-      %% TODO: uncomment the following row if you want a durable message
-      %%, props = #'P_basic'{delivery_mode=2}
-     },
+    {ok, Durable} = ebot_util:get_env(mq_durable_queues),
+    case Durable of
+	true ->
+	    Msg = #amqp_msg{
+	      payload = Payload,
+	      props = #'P_basic'{delivery_mode=2}
+	     };
+	false ->
+	    Msg = #amqp_msg{
+	      payload = Payload
+	     }
+    end,
     case Result = amqp_channel:cast(Channel, BasicPublish, _MsgPayload = Msg) of
 	ok ->
 	    error_logger:info_report({?MODULE, ?LINE, {send_url, RoutingKey, Payload}});
@@ -307,9 +314,9 @@ amqp_setup_consumer(Channel, Q, X, Key, Durable) ->
     #'queue.bind_ok'{} = amqp_channel:call(Channel, QueueBind).
 
 get_new_queue_name(Depth) ->
-    get_queue_name_using_queue_depth(?EBOT_KEY_URL_NEW, Depth).
+    get_queue_name_using_prefix_depth(?EBOT_KEY_URL_NEW, Depth).
 
-get_queue_name_using_queue_depth(Queue, Depth) ->
+get_queue_name_using_prefix_depth(Queue, Depth) ->
     list_to_binary( 
       binary_to_list(Queue) ++ 
       "." ++ 
