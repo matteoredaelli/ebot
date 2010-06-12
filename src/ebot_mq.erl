@@ -265,9 +265,12 @@ amqp_send_message(RoutingKey, Payload, State) ->
     Result.
 
 amqp_setup_new_url_consumers(Channel, Tot, Durable) ->
+    amqp_setup_url_consumers(Channel, ?EBOT_KEY_URL_NEW, Tot, Durable).
+
+amqp_setup_url_consumers(Channel, Queue, Tot, Durable) ->
     lists:foreach(
       fun(N) ->
-	      KeyQueue = get_new_queue_name(N),
+	      KeyQueue = get_queue_name_using_prefix_depth(Queue, N),
 	      amqp_setup_consumer(
 		Channel,
 		KeyQueue,
