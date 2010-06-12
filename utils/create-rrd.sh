@@ -19,7 +19,7 @@ rrdtool create $TARGET_DIR/ebot_db.rrd --start $NOW  --step 300	\
     RRA:AVERAGE:0.5:12:744	\
     RRA:AVERAGE:0.5:288:365 
 
-rrdtool create $TARGET_DIR/ebot_cache.rrd --start $NOW  --step 300	\
+rrdtool create $TARGET_DIR/ebot_crawler.rrd --start $NOW  --step 300	\
     DS:new_urls:GAUGE:600:0:U	\
     DS:visited_urls:GAUGE:600:0:U   \
     RRA:AVERAGE:0.5:1:1008	\

@@ -235,7 +235,7 @@ analyze_url(Url) ->
     analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days)).
 
 analyze_url_header(Url) ->
-    ebot_cache:add_visited_url(Url),
+    ebot_crawler:add_visited_url(Url),
     case Result = try_fetch_url(Url, head) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
@@ -302,7 +302,7 @@ analyze_url_body_links(Url, Links) ->
     %% removing already visited urls and not valid
     NotVisitedLinks = lists:filter(
 			fun(U) -> 
-				(not ebot_cache:is_visited_url(U)) andalso
+				(not ebot_crawler:is_visited_url(U)) andalso
 				    ebot_url_util:is_valid_url(U)
 			end,
 			UniqueLinks),
@@ -313,7 +313,7 @@ analyze_url_body_links(Url, Links) ->
 	      %% creating the url in the database if it doen't exists
 	      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 	      ebot_db:open_or_create_url(U),
-	      ebot_cache:add_new_url(U),
+	      ebot_crawler:add_new_url(U),
 	      case  needed_update_url_referral(
 		      ebot_url_util:is_same_main_domain(Url, U),
 		      ebot_url_util:is_same_domain(Url, U)) of

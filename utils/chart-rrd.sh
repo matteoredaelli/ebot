@@ -44,7 +44,7 @@ do
         LINE1:disk#FF0000:"Disk size"	\
         LINE2:docsK#0000FF:"Doc count"
 
-    rrd="ebot_cache"
+    rrd="ebot_crawler"
 
     /usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \
         --start $start --end now --step $step              \

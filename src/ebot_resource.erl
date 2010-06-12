@@ -77,7 +77,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 	    Url = wrq:get_qs_value("url",ReqData),
 	    case is_list(Url) of
 		true ->
-		    ebot_cache:add_new_url( list_to_binary(Url) ),
+		    ebot_crawler:add_new_url( list_to_binary(Url) ),
 		    Result = "Added url: " ++ Url;
 		false ->
 		    Result = "Invalid/Missing parameter url"

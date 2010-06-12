@@ -16,13 +16,13 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %%
 %%%-------------------------------------------------------------------
-%%% File    : ebot_cache.erl
+%%% File    : ebot_crawler.erl
 %%% Author  : matteo <<matteo.redaelli@@libero.it>
 %%% Description : 
 %%%
 %%% Created :  4 Oct 2009 by matteo <matteo@redaelli.org>
 %%%-------------------------------------------------------------------
--module(ebot_cache).
+-module(ebot_crawler).
 -author("matteo.redaelli@@libero.it").
 -define(SERVER, ?MODULE).
 

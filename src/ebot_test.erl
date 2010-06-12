@@ -62,5 +62,5 @@ test_oss() ->
 test_crawlers_with_urls(Urls) ->
     ebot_db:empty_db_urls(),
     timer:sleep(5),
-    lists:foreach( fun ebot_cache:add_new_url/1, Urls),
+    lists:foreach( fun ebot_crawler:add_new_url/1, Urls),
     ebot_web:start_crawlers().
