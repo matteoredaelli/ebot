@@ -28,12 +28,13 @@
 
 -define(SERVER, ?MODULE).
 -define(EBOT_EXCHANGE, <<"EBOT">>).
-%-define(EBOT_QUEUE_URL_NEW, <<"EBOT_QUEUE_URL_NEW">>).
-%-define(EBOT_QUEUE_URL_REFUSED, <<"EBOT_QUEUE_URL_REFUSED">>).
-
--define(EBOT_KEY_URL_NEW, <<"ebot.url.new">>).
--define(EBOT_KEY_URL_PROCESSED, <<"ebot.url.processed">>).
--define(EBOT_KEY_URL_REFUSED, <<"ebot.url.refused">>).
+-define(EBOT_URL_KEYS, [
+		    <<"new">>, 
+		    <<"fetched">>, 
+		    <<"processed">>, 
+		    <<"refused">>
+		   ]).
+-define(EBOT_URL_KEY_PREFIX, <<"ebot.url.">>).
 -define(TIMEOUT, 10000).
 
 -behaviour(gen_server).
@@ -44,10 +45,10 @@
 %% API
 -export([
 	 start_link/0,
-	 add_new_url/1,
-	 add_processed_url/1,
-	 add_refused_url/1,
-	 get_new_url/1,
+	 receive_url_new/1,
+	 send_url_new/1,
+	 send_url_processed/1,
+	 send_url_refused/1,
 	 statistics/0
 	]).
 
@@ -70,19 +71,14 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-
-add_new_url(Url) ->
-    gen_server:cast(?MODULE, {add_new_url, Url}).
-
-add_processed_url(Url) ->
-    gen_server:cast(?MODULE, {add_processed_url, Url}).
-
-add_refused_url(Url) ->
-    gen_server:cast(?MODULE, {add_refused_url, Url}).
-
-get_new_url(Depth) ->
-    gen_server:call(?MODULE, {get_new_url, Depth}).
-
+receive_url_new(Depth) ->
+    gen_server:call(?MODULE, {receive_url_new, Depth}).
+send_url_new(Payload) ->
+    gen_server:cast(?MODULE, {send_url_new, Payload}).
+send_url_processed(Payload) ->
+    gen_server:cast(?MODULE, {send_url_processed, Payload}).
+send_url_refused(Payload) ->
+    gen_server:cast(?MODULE, {send_url_refused, Payload}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
 
@@ -109,10 +105,12 @@ init([]) ->
      },
     case ampq_connect_and_get_channel(AMQParams, Durable) of
 	{ok, {Connection, Channel}} ->
-	    {ok, TotQueues} = ebot_util:get_env(mq_tot_new_urls_queues),
-	    amqp_setup_new_url_consumers(Channel, TotQueues, Durable),
-	    amqp_setup_processed_consumer(Channel, Durable),
-	    amqp_setup_refused_consumer(Channel, Durable),
+	    {ok, TotQueues} = ebot_util:get_env(mq_priority_url_queues),
+	    lists:foreach(
+	      fun(Key) ->
+		      amqp_setup_url_consumers(Channel, Key, TotQueues, Durable)
+	      end,
+	      ?EBOT_URL_KEYS),
 	    {ok, #state{
 	       channel = Channel,
 	       connection = Connection
@@ -132,17 +130,16 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
-handle_call({get_new_url, Depth}, _From, State) ->
-    Channel =  State#state.channel,
-    Reply = amqp_basic_get_message(Channel, get_new_queue_name(Depth)),
+handle_call({receive_url_new, Depth}, _From, State) ->
+    Reply = amqp_receive_url(<<"new">>, Depth, State),
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
     Channel =  State#state.channel,
-    {ok, TotQueues} = ebot_util:get_env(mq_tot_new_urls_queues),
+    {ok, TotQueues} = ebot_util:get_env(mq_priority_url_queues),
     Reply = lists:map(
 	       fun(N) -> 
-		       Q = get_new_queue_name(N), 
+		       Q = get_url_queue_name(<<"new">>, N), 
 		       queue_statistics(Channel, Q)
 	       end,
 	      lists:seq(0, TotQueues)
@@ -159,21 +156,15 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({add_new_url, Url}, State) ->
-    {ok, {Module, Function}} = ebot_util:get_env(mq_url_priority_plugin),
-    Depth = Module:Function(Url),
-    Key = get_new_queue_name(Depth),
-    amqp_send_message(Key, Url, State),
+handle_cast({send_url_new, Payload}, State) ->
+    amqp_send_url(<<"new">>, Payload, State),
     {noreply, State};
-
-handle_cast({add_processed_url, Url}, State) ->
-    amqp_send_message(?EBOT_KEY_URL_PROCESSED, Url, State),
+handle_cast({send_url_processed, Payload}, State) ->
+    amqp_send_url(<<"processed">>, Payload, State),
     {noreply, State};
-
-handle_cast({add_refused_url, Url}, State) ->
-    amqp_send_message(?EBOT_KEY_URL_REFUSED, Url, State),
+handle_cast({send_url_refused, Payload}, State) ->
+    amqp_send_url(<<"refused">>, Payload, State),
     {noreply, State};
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -233,10 +224,21 @@ amqp_basic_get_message(Channel, Queue) ->
 	 {#'basic.get_ok'{}, Content} ->
 	     #amqp_msg{payload = Payload} = Content,
 	     error_logger:info_report({?MODULE, ?LINE, {get_url, Queue, Payload}}),
-	     Payload;
+	     payload_decode(Payload);
 	 _Else ->
 	     empty
      end.
+
+amqp_receive_url(Key, Depth, State) ->
+    Channel =  State#state.channel,
+    Queue = get_url_queue_name(Key, Depth),
+    amqp_basic_get_message(Channel, Queue).
+
+amqp_send_url(Key, Payload = {Url, _}, State) ->
+    {ok, {Module, Function}} = ebot_util:get_env(mq_url_priority_plugin),
+    Depth = Module:Function(Url),
+    RoutingKey = get_url_queue_name(Key, Depth),
+    amqp_send_message(RoutingKey, Payload, State).
 
 amqp_send_message(RoutingKey, Payload, State) ->
     Channel =  State#state.channel,
@@ -244,16 +246,17 @@ amqp_send_message(RoutingKey, Payload, State) ->
     BasicPublish = #'basic.publish'{exchange = Exchange, 
 				    routing_key = RoutingKey},
 
+    NewPayload = payload_encode(Payload),
     {ok, Durable} = ebot_util:get_env(mq_durable_queues),
     case Durable of
 	true ->
 	    Msg = #amqp_msg{
-	      payload = Payload,
+	      payload = NewPayload,
 	      props = #'P_basic'{delivery_mode=2}
 	     };
 	false ->
 	    Msg = #amqp_msg{
-	      payload = Payload
+	      payload = NewPayload
 	     }
     end,
     case Result = amqp_channel:cast(Channel, BasicPublish, _MsgPayload = Msg) of
@@ -264,33 +267,16 @@ amqp_send_message(RoutingKey, Payload, State) ->
     end,
     Result.
 
-amqp_setup_new_url_consumers(Channel, Tot, Durable) ->
-    amqp_setup_url_consumers(Channel, ?EBOT_KEY_URL_NEW, Tot, Durable).
-
-amqp_setup_url_consumers(Channel, Queue, Tot, Durable) ->
+amqp_setup_url_consumers(Channel, Key, Tot, Durable) ->
     lists:foreach(
       fun(N) ->
-	      KeyQueue = get_queue_name_using_prefix_depth(Queue, N),
+	      KeyQueue = get_url_queue_name(Key, N),
 	      amqp_setup_consumer(
 		Channel,
 		KeyQueue,
 		Durable
 	       ) end,
       lists:seq(0, Tot)
-     ).
-
-amqp_setup_processed_consumer(Channel, Durable) ->
-    amqp_setup_consumer(
-      Channel,
-      ?EBOT_KEY_URL_PROCESSED,
-      Durable
-     ).
-
-amqp_setup_refused_consumer(Channel, Durable) ->
-    amqp_setup_consumer(
-      Channel,
-      ?EBOT_KEY_URL_REFUSED,
-      Durable
      ).
 
 amqp_setup_consumer(Channel, QueueKey, Durable) ->
@@ -316,14 +302,10 @@ amqp_setup_consumer(Channel, Q, X, Key, Durable) ->
                               routing_key = Key},
     #'queue.bind_ok'{} = amqp_channel:call(Channel, QueueBind).
 
-get_new_queue_name(Depth) ->
-    get_queue_name_using_prefix_depth(?EBOT_KEY_URL_NEW, Depth).
 
-get_queue_name_using_prefix_depth(Queue, Depth) ->
-    list_to_binary( 
-      binary_to_list(Queue) ++ 
-      "." ++ 
-      integer_to_list(Depth)).
+get_url_queue_name(Key, Depth) ->
+    BinDepth = list_to_binary("." ++ integer_to_list(Depth)),
+    <<?EBOT_URL_KEY_PREFIX/binary,Key/binary,BinDepth/binary>>.
 
 queue_statistics(Channel, Q) ->
     QueueDeclare = #'queue.declare'{queue=Q},
@@ -337,6 +319,11 @@ queue_statistics(Channel, Q) ->
 log(Key,Value) ->
     error_logger:info_report({?MODULE, ?LINE, {Key,Value }}),
     io:format("~p: ~p~n",[Key,Value]).
+
+payload_decode(Payload) ->
+     binary_to_term(Payload).
+payload_encode(Payload) ->
+     term_to_binary(Payload, [compressed]).
 
 %%====================================================================
 %% EUNIT TESTS

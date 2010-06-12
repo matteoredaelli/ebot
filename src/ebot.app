@@ -48,7 +48,7 @@
 	   {channel_max       , 0}
 	  ]},
 	 {mq_durable_queues, false},
-	 {mq_tot_new_urls_queues, 4},
+	 {mq_priority_url_queues, 4},
 	 
 	 %% {mq_url_priority_plugin, {Module, Fun/1}}
 	 %% Fun:
