@@ -33,6 +33,7 @@
 %% API
 -export([start_link/0,
 	 crawlers_status/0,
+	 start_crawlers/0,
 	 stop_crawlers/0
 	]).
 
@@ -56,6 +57,8 @@ start_link() ->
 
 crawlers_status() ->
     gen_server:call(?MODULE, {crawlers_status}).
+start_crawlers() ->
+    gen_server:call(?MODULE, {start_crawlers}).
 stop_crawlers() ->
     gen_server:call(?MODULE, {stop_crawlers}).
 
@@ -93,6 +96,13 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({crawlers_status}, _From, State) ->
     {reply, State#state.crawlers_status, State};
+handle_call({start_crawlers}, _From, State) ->
+    error_logger:info_report({?MODULE, ?LINE, {start_crawlers, invoked}}),
+    NewState = State#state{
+		 crawlers_status = started
+		},
+    ebot_web:start_crawlers(),
+    {reply, ok, NewState};
 
 handle_call({stop_crawlers}, _From, State) ->
     error_logger:warning_report({?MODULE, ?LINE, {stop_crawlers, invoked}}),

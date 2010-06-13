@@ -47,7 +47,7 @@
 
 -record(state, {
 	  crawlers_status = started,  %% or stopped
-	  crawlers_list = [],
+	  worker_list = [],
 	  new_urls = queue:new(),
 	  new_urls_counter = 0,
 	  visited_urls = queue:new(),

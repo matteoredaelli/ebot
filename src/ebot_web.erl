@@ -36,14 +36,14 @@
 -export([
 	 analyze_url/1,
 	 analyze_url_body_plugins/2,
-	 check_recover_crawlers/0,
+	 check_recover_workers/0,
 	 crawl/1,
 	 info/0,
-	 show_crawlers_list/0,
+	 show_worker_list/0,
 	 start_crawlers/0,
 	 start_link/0,
 	 statistics/0,
-	 stop_crawler/1
+	 stop_worker/1
 	]).
 
 %% gen_server callbacks
@@ -51,7 +51,7 @@
 	 terminate/2, code_change/3]).
 
 -record(state,{
-	  crawlers_list = []
+	  worker_list = []
 	 }).
 
 %%====================================================================
@@ -63,18 +63,18 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
-check_recover_crawlers() ->
-    gen_server:call(?MODULE, {check_recover_crawlers}).
+check_recover_workers() ->
+    gen_server:call(?MODULE, {check_recover_workers}).
 info() ->
     gen_server:call(?MODULE, {info}).
-show_crawlers_list() ->
-    gen_server:call(?MODULE, {show_crawlers_list}).
+show_worker_list() ->
+    gen_server:call(?MODULE, {show_worker_list}).
 start_crawlers() ->
     gen_server:cast(?MODULE, {start_crawlers}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
-stop_crawler(Crawler) ->
-    gen_server:call(?MODULE, {stop_crawler, Crawler}).
+stop_worker(Crawler) ->
+    gen_server:call(?MODULE, {stop_worker, Crawler}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -108,14 +108,14 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
-handle_call({check_recover_crawlers}, _From, State) ->
-    NewCrawlers = check_recover_crawlers(State),
+handle_call({check_recover_workers}, _From, State) ->
+    NewCrawlers = check_recover_workers(State),
     NewState = State#state{
-		 crawlers_list = NewCrawlers
+		 worker_list = NewCrawlers
 		},
     {reply, NewCrawlers, NewState};
 handle_call({info}, _From, State) ->
-    Crawlers = State#state.crawlers_list,
+    Crawlers = State#state.worker_list,
     Reply = lists:map(
 	      fun({Depth, Pid}) ->
 		      {Depth, process_info(Pid)}
@@ -124,7 +124,7 @@ handle_call({info}, _From, State) ->
     {reply, Reply, State};
 handle_call({statistics}, _From, State) ->
     {ok, Pools} = ebot_util:get_env(crawler_pools),
-    Crawlers = State#state.crawlers_list,
+    Crawlers = State#state.worker_list,
 
     Depths = lists:sort(
 	       lists:map( 
@@ -141,15 +141,15 @@ handle_call({statistics}, _From, State) ->
 	      Depths),
     {reply, Reply, State};
 
-handle_call({show_crawlers_list}, _From, State) ->
-    Reply = State#state.crawlers_list,
+handle_call({show_worker_list}, _From, State) ->
+    Reply = State#state.worker_list,
     {reply, Reply, State};
 
-handle_call({stop_crawler, {Depth,Pid}}, _From, State) ->
+handle_call({stop_worker, {Depth,Pid}}, _From, State) ->
     Reply = ok,
     NewState = State#state{
-		 crawlers_list = lists:delete({Depth,Pid}, 
-						State#state.crawlers_list)
+		 worker_list = lists:delete({Depth,Pid}, 
+						State#state.worker_list)
 		},
     {reply, Reply, NewState};
 
@@ -341,18 +341,18 @@ analyze_url_from_url_status(Url, {ok, {header, HeaderStatus}, {body,_}}) ->
 	    Other
     end.
 
-check_recover_crawlers(State) ->
-    Crawlers = State#state.crawlers_list,
+check_recover_workers(State) ->
+    Crawlers = State#state.worker_list,
     lists:map( 
       fun({Depth, Pid}) ->
 	      case erlang:is_process_alive(Pid) of
 		  true ->
 		      error_logger:warning_report({?MODULE, ?LINE, 
-					   {check_recover_crawlers, status,
+					   {check_recover_workers, status,
 					    proplists:get_value(status, process_info(Pid)) }}),
 		      {Depth, Pid};
 		  false ->
-		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_crawlers, recovering_dead_crawler}}),
+		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_workers, recovering_dead_crawler}}),
 		      start_crawler(Depth)
 	      end
       end,
@@ -372,7 +372,7 @@ crawl(Depth) ->
 	    crawl(Depth);
 	stopped ->
 	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
-	    stop_crawler( {Depth, self()} )
+	    stop_worker( {Depth, self()} )
     end.
 
 get_env_normalize_url(Url, [{RE,Options}|L]) ->
@@ -415,10 +415,10 @@ start_crawlers(State) ->
 			    OtherCrawlers = start_crawlers(Depth, Tot),
 			    lists:append( Crawlers, OtherCrawlers)
 		    end,
-		    State#state.crawlers_list,
+		    State#state.worker_list,
 		    Pools),
     NewState = State#state{
-		 crawlers_list = NewCrawlers
+		 worker_list = NewCrawlers
 		},
     NewState.
 

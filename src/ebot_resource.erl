@@ -92,22 +92,22 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		    Result = "Invalid/Missing parameter url"
 	    end;
     	"check_recover" ->
-	    Before = ebot_web:show_crawlers_list(),
-    	    After = ebot_web:check_recover_crawlers(),
+	    Before = ebot_web:show_worker_list(),
+    	    After = ebot_web:check_recover_workers(),
 	    Recovered = length(lists:subtract(After, Before)),
 	    Result = "Crawlers: restarted " ++ 
 		integer_to_list(Recovered) ++
 		" crawlers\n";
     	"start" ->
-	    Tot1 = length(ebot_web:show_crawlers_list()),
+	    Tot1 = length(ebot_web:show_worker_list()),
     	    ebot_web:start_crawlers(),
-	    Tot2 = length(ebot_web:show_crawlers_list()),
+	    Tot2 = length(ebot_web:show_worker_list()),
 	    Result = "Starting crawlers: from " ++ 
 		integer_to_list(Tot1) ++
 		" to " ++
 		integer_to_list(Tot2);
    	"stop" ->
-	    Tot1 = length(ebot_web:show_crawlers_list()),
+	    Tot1 = length(ebot_web:show_worker_list()),
     	    ebot_crawler:stop_crawlers(),
 	    Result = "Stopping " ++ 
 		integer_to_list(Tot1) ++
