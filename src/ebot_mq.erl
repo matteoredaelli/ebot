@@ -224,9 +224,9 @@ amqp_basic_get_message(Channel, Queue) ->
 	 {#'basic.get_ok'{}, Content} ->
 	     #amqp_msg{payload = Payload} = Content,
 	     error_logger:info_report({?MODULE, ?LINE, {get_url, Queue, Payload}}),
-	     payload_decode(Payload);
-	 _Else ->
-	     empty
+	     {ok, payload_decode(Payload)};
+	 Else ->
+	     {error, Else}
      end.
 
 amqp_receive_url(Key, Depth, State) ->

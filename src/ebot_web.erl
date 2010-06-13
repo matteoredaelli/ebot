@@ -387,8 +387,12 @@ check_recover_crawlers(State) ->
       Crawlers).
 
 crawl(Depth) ->
-    {Url, _} = ebot_mq:receive_url_new(Depth),
-    analyze_url(Url),
+    case ebot_mq:receive_url_new(Depth) of
+	{ok, {Url, _}} ->
+	    analyze_url(Url);
+	{error, _} ->
+	    timer:sleep( 2000 )
+    end,
     case ebot_web:crawlers_status() of
 	started ->
 	    {ok, Sleep} = ebot_util:get_env(crawlers_sleep_time),
