@@ -33,8 +33,8 @@
 %% API
 -export([start_link/0,
 	 crawlers_status/0,
-	 start_crawlers/0,
-	 stop_crawlers/0
+	 start_workers/0,
+	 stop_workers/0
 	]).
 
 %% gen_server callbacks
@@ -57,10 +57,10 @@ start_link() ->
 
 crawlers_status() ->
     gen_server:call(?MODULE, {crawlers_status}).
-start_crawlers() ->
-    gen_server:call(?MODULE, {start_crawlers}).
-stop_crawlers() ->
-    gen_server:call(?MODULE, {stop_crawlers}).
+start_workers() ->
+    gen_server:call(?MODULE, {start_workers}).
+stop_workers() ->
+    gen_server:call(?MODULE, {stop_workers}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -74,7 +74,7 @@ stop_crawlers() ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-    case ebot_util:get_env(start_crawlers_at_boot) of
+    case ebot_util:get_env(start_workers_at_boot) of
 	{ok, true} ->
 	    Crawlers_status = started;
 	{ok, false} ->
@@ -96,16 +96,16 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({crawlers_status}, _From, State) ->
     {reply, State#state.crawlers_status, State};
-handle_call({start_crawlers}, _From, State) ->
-    error_logger:info_report({?MODULE, ?LINE, {start_crawlers, invoked}}),
+handle_call({start_workers}, _From, State) ->
+    error_logger:info_report({?MODULE, ?LINE, {start_workers, invoked}}),
     NewState = State#state{
 		 crawlers_status = started
 		},
-    ebot_web:start_crawlers(),
+    ebot_web:start_workers(),
     {reply, ok, NewState};
 
-handle_call({stop_crawlers}, _From, State) ->
-    error_logger:warning_report({?MODULE, ?LINE, {stop_crawlers, invoked}}),
+handle_call({stop_workers}, _From, State) ->
+    error_logger:warning_report({?MODULE, ?LINE, {stop_workers, invoked}}),
     NewState = State#state{
 		 crawlers_status = stopped
 		},

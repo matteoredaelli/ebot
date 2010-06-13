@@ -40,7 +40,7 @@
 	 crawl/1,
 	 info/0,
 	 show_worker_list/0,
-	 start_crawlers/0,
+	 start_workers/0,
 	 start_link/0,
 	 statistics/0,
 	 stop_worker/1
@@ -69,8 +69,8 @@ info() ->
     gen_server:call(?MODULE, {info}).
 show_worker_list() ->
     gen_server:call(?MODULE, {show_worker_list}).
-start_crawlers() ->
-    gen_server:cast(?MODULE, {start_crawlers}).
+start_workers() ->
+    gen_server:cast(?MODULE, {start_workers}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
 stop_worker(Crawler) ->
@@ -91,9 +91,9 @@ init([]) ->
     {ok, Options} = ebot_util:get_env(web_request_options),
     http:set_options(Options),
     State = #state{},
-    case ebot_util:get_env(start_crawlers_at_boot) of
+    case ebot_util:get_env(start_workers_at_boot) of
 	{ok, true} ->
-	    NewState = start_crawlers(State);
+	    NewState = start_workers(State);
 	{ok, false} ->
 	    NewState = State
     end,
@@ -163,8 +163,8 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({start_crawlers}, State) ->
-    NewState = start_crawlers(State),
+handle_cast({start_workers}, State) ->
+    NewState = start_workers(State),
     {noreply, NewState};
 
 handle_cast(_Msg, State) ->
@@ -353,7 +353,7 @@ check_recover_workers(State) ->
 		      {Depth, Pid};
 		  false ->
 		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_workers, recovering_dead_crawler}}),
-		      start_crawler(Depth)
+		      start_worker(Depth)
 	      end
       end,
       Crawlers).
@@ -403,16 +403,16 @@ needed_update_url_referral(_, true, domain) ->
 needed_update_url_referral(_,_,_) ->
     false.
 
-start_crawler(Depth) ->
+start_worker(Depth) ->
     Pid = spawn( ?MODULE, crawl, [Depth]),
     {Depth, Pid}.
 
-start_crawlers(State) ->
+start_workers(State) ->
     {ok, Pools} = ebot_util:get_env(crawler_pools),
     
     NewCrawlers = lists:foldl(
 		    fun({Depth,Tot}, Crawlers) ->
-			    OtherCrawlers = start_crawlers(Depth, Tot),
+			    OtherCrawlers = start_workers(Depth, Tot),
 			    lists:append( Crawlers, OtherCrawlers)
 		    end,
 		    State#state.worker_list,
@@ -422,9 +422,9 @@ start_crawlers(State) ->
 		},
     NewState.
 
-start_crawlers(Depth, Total) -> 
+start_workers(Depth, Total) -> 
     lists:map(
-      fun(_) -> start_crawler(Depth) end,
+      fun(_) -> start_worker(Depth) end,
       lists:seq(1,Total)).
 
 %%====================================================================
