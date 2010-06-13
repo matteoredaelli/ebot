@@ -46,6 +46,8 @@
 	 terminate/2, code_change/3]).
 
 -record(state, {
+	  crawlers_status = started,  %% or stopped
+	  crawlers_list = [],
 	  new_urls = queue:new(),
 	  new_urls_counter = 0,
 	  visited_urls = queue:new(),
@@ -98,8 +100,8 @@ init([]) ->
     %% in this way it is easier to check the max size of it:
     %% the queue is always full, everytime a new item is added,
     %% the oldest item is removed
-    NewUrls = new_queue_with_empty_values(NewQueueSize),
-    VisitedUrls = new_queue_with_empty_values(VisitedQueueSize),
+    NewUrls = ebot_util:create_filled_queue(<<>>, NewQueueSize),
+    VisitedUrls = ebot_util:create_filled_queue(<<>>, VisitedQueueSize),
 
     State =  #state{
       new_urls = NewUrls,
@@ -219,16 +221,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
-
-%%get_config(Option, State) ->
-%%    proplists:get_value(Option, State#state.config).
-
-new_queue_with_empty_values(QueueSize) ->
-    lists:foldl(
-      fun(_E, Q) -> queue:in(<<>>, Q) end,
-      queue:new(),
-      lists:seq(1, QueueSize)
-     ).
 
 show_queue(Q) ->
     List = lists:map(

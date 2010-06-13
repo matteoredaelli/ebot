@@ -28,6 +28,7 @@
 
 %% API
 -export([ 
+	  create_filled_queue/2,
 	  get_env/1,
 	  load_settings/1,
 	  info/1,
@@ -42,6 +43,14 @@
 %%====================================================================
 %% EBOT specific Internal functions
 %%====================================================================
+
+
+create_filled_queue(Value, QueueSize) ->
+    lists:foldl(
+      fun(_E, Q) -> queue:in(Value, Q) end,
+      queue:new(),
+      lists:seq(1, QueueSize)
+     ).
 
 get_env(Key) ->
     application:get_env(ebot, Key).
