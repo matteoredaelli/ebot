@@ -227,7 +227,7 @@ analyze_url_header(Url) ->
     case Result = ebot_web_util:fetch_url_head(Url) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
-	    Options = [{update_field_key_value, <<"ebot_errors_count">>, 0},
+	    Options = [{update_field_timestamp, <<"ebot_errors_count">>},
 		       {update_field_key_value, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason))}
 		      ],
 	    %% TODO: instead of only Url, it would be nice to send {Url, Reason}
