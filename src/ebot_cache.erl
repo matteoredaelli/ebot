@@ -46,7 +46,7 @@
 	 terminate/2, code_change/3]).
 
 -record(state, {
-	  crawlers_status = started,  %% or stopped
+	  workers_status = started,  %% or stopped
 	  worker_list = [],
 	  new_urls = queue:new(),
 	  new_urls_counter = 0,

@@ -39,11 +39,11 @@ test() ->
 
 test1() ->
     Urls = [ <<"http://www.gitorious.org/">> ],
-    test_crawlers_with_urls(Urls).
+    test_workers_with_urls(Urls).
 
 test2() ->
     Urls = [ <<"http://code.google.com/">> ],
-    test_crawlers_with_urls(Urls).
+    test_workers_with_urls(Urls).
 
 test_oss() ->
     Urls = [
@@ -57,9 +57,9 @@ test_oss() ->
      <<"http://raa.ruby-lang.org/">>,
      <<"http://pypi.python.org/pypi">>,
      <<"https://launchpad.net/">>],
-    test_crawlers_with_urls(Urls).
+    test_workers_with_urls(Urls).
 
-test_crawlers_with_urls(Urls) ->
+test_workers_with_urls(Urls) ->
     ebot_db:empty_db_urls(),
     timer:sleep(5),
     ebot_crawler:start_workers(),

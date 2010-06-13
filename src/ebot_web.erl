@@ -123,7 +123,7 @@ handle_call({info}, _From, State) ->
 	      Crawlers),
     {reply, Reply, State};
 handle_call({statistics}, _From, State) ->
-    {ok, Pools} = ebot_util:get_env(crawler_pools),
+    {ok, Pools} = ebot_util:get_env(worker_pools),
     Crawlers = State#state.worker_list,
 
     Depths = lists:sort(
@@ -352,7 +352,7 @@ check_recover_workers(State) ->
 					    proplists:get_value(status, process_info(Pid)) }}),
 		      {Depth, Pid};
 		  false ->
-		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_workers, recovering_dead_crawler}}),
+		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_workers, recovering_dead_worker}}),
 		      start_worker(Depth)
 	      end
       end,
@@ -365,13 +365,13 @@ crawl(Depth) ->
 	{error, _} ->
 	    timer:sleep( 2000 )
     end,
-    case ebot_crawler:crawlers_status() of
+    case ebot_crawler:workers_status() of
 	started ->
-	    {ok, Sleep} = ebot_util:get_env(crawlers_sleep_time),
+	    {ok, Sleep} = ebot_util:get_env(workers_sleep_time),
 	    timer:sleep( Sleep ),
 	    crawl(Depth);
 	stopped ->
-	    error_logger:warning_report({?MODULE, ?LINE, {stopping_crawler, self()}}),
+	    error_logger:warning_report({?MODULE, ?LINE, {stopping_worker, self()}}),
 	    stop_worker( {Depth, self()} )
     end.
 
@@ -408,7 +408,7 @@ start_worker(Depth) ->
     {Depth, Pid}.
 
 start_workers(State) ->
-    {ok, Pools} = ebot_util:get_env(crawler_pools),
+    {ok, Pools} = ebot_util:get_env(worker_pools),
     
     NewCrawlers = lists:foldl(
 		    fun({Depth,Tot}, Crawlers) ->

@@ -32,7 +32,7 @@
 
 %% API
 -export([start_link/0,
-	 crawlers_status/0,
+	 workers_status/0,
 	 start_workers/0,
 	 stop_workers/0
 	]).
@@ -42,7 +42,7 @@
 	 terminate/2, code_change/3]).
 
 -record(state, {
-	  crawlers_status = started
+	  workers_status = started
 	 }).
 
 %%====================================================================
@@ -55,8 +55,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-crawlers_status() ->
-    gen_server:call(?MODULE, {crawlers_status}).
+workers_status() ->
+    gen_server:call(?MODULE, {workers_status}).
 start_workers() ->
     gen_server:call(?MODULE, {start_workers}).
 stop_workers() ->
@@ -81,7 +81,7 @@ init([]) ->
 	    Crawlers_status = stopped
     end,
     State =  #state{
-      crawlers_status = Crawlers_status
+      workers_status = Crawlers_status
      },
     {ok, State}.
 
@@ -94,12 +94,12 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
-handle_call({crawlers_status}, _From, State) ->
-    {reply, State#state.crawlers_status, State};
+handle_call({workers_status}, _From, State) ->
+    {reply, State#state.workers_status, State};
 handle_call({start_workers}, _From, State) ->
     error_logger:info_report({?MODULE, ?LINE, {start_workers, invoked}}),
     NewState = State#state{
-		 crawlers_status = started
+		 workers_status = started
 		},
     ebot_web:start_workers(),
     {reply, ok, NewState};
@@ -107,7 +107,7 @@ handle_call({start_workers}, _From, State) ->
 handle_call({stop_workers}, _From, State) ->
     error_logger:warning_report({?MODULE, ?LINE, {stop_workers, invoked}}),
     NewState = State#state{
-		 crawlers_status = stopped
+		 workers_status = stopped
 		},
     {reply, ok, NewState};
 
