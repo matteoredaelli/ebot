@@ -335,7 +335,7 @@ payload_encode(Payload) ->
 
 ebot_mq_test() ->
     Url = <<"http://www.redaelli.org/matteo/ebot_test/">>,
-    ebot_mq:add_new_url(Url),
-    ?assertEqual( Url, ebot_mq:get_new_url(2)).
+    ebot_mq:send_url_new({Url,false}),
+    ?assertEqual( {ok, {Url,false}}, ebot_mq:receive_url_new(2)).
 
 -endif.

@@ -108,7 +108,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		integer_to_list(Tot2);
    	"stop" ->
 	    Tot1 = length(ebot_web:show_crawlers_list()),
-    	    ebot_web:stop_crawlers(),
+    	    ebot_crawler:stop_crawlers(),
 	    Result = "Stopping " ++ 
 		integer_to_list(Tot1) ++
 		" crawlers";

@@ -9,10 +9,19 @@
     ebot_sup,
     ebot_deps,
     ebot_resource,
-    ebot_db,
+
     ebot_cache,
+    ebot_crawler,
+    ebot_db,
+    ebot_db_backend_riak_pb,
+    ebot_db_backend_couchdb,
+    ebot_db_util,
+    ebot_html_util,
     ebot_mq,
-    ebot_web
+    ebot_stats,
+    ebot_util,
+    ebot_web,
+    ebot_web_util
   ]},
   {registered, []},
   {mod, {ebot_app, []}},

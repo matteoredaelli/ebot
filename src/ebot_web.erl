@@ -38,14 +38,12 @@
 	 analyze_url_body_plugins/2,
 	 check_recover_crawlers/0,
 	 crawl/1,
-	 crawlers_status/0,
 	 info/0,
 	 show_crawlers_list/0,
 	 start_crawlers/0,
 	 start_link/0,
 	 statistics/0,
-	 stop_crawler/1,
-	 stop_crawlers/0
+	 stop_crawler/1
 	]).
 
 %% gen_server callbacks
@@ -53,7 +51,6 @@
 	 terminate/2, code_change/3]).
 
 -record(state,{
-	  crawlers_status = started,  %% or stopped
 	  crawlers_list = []
 	 }).
 
@@ -68,8 +65,6 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], [{timeout,?TIMEOUT}]).
 check_recover_crawlers() ->
     gen_server:call(?MODULE, {check_recover_crawlers}).
-crawlers_status() ->
-    gen_server:call(?MODULE, {crawlers_status}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_crawlers_list() ->
@@ -80,8 +75,7 @@ statistics() ->
     gen_server:call(?MODULE, {statistics}).
 stop_crawler(Crawler) ->
     gen_server:call(?MODULE, {stop_crawler, Crawler}).
-stop_crawlers() ->
-    gen_server:call(?MODULE, {stop_crawlers}).
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -99,13 +93,11 @@ init([]) ->
     State = #state{},
     case ebot_util:get_env(start_crawlers_at_boot) of
 	{ok, true} ->
-	    Crawlers_status = started,
 	    NewState = start_crawlers(State);
 	{ok, false} ->
-	    Crawlers_status = stopped,
 	    NewState = State
     end,
-    {ok, NewState#state{crawlers_status = Crawlers_status}}.
+    {ok, NewState}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -122,8 +114,6 @@ handle_call({check_recover_crawlers}, _From, State) ->
 		 crawlers_list = NewCrawlers
 		},
     {reply, NewCrawlers, NewState};
-handle_call({crawlers_status}, _From, State) ->
-    {reply, State#state.crawlers_status, State};
 handle_call({info}, _From, State) ->
     Crawlers = State#state.crawlers_list,
     Reply = lists:map(
@@ -163,12 +153,6 @@ handle_call({stop_crawler, {Depth,Pid}}, _From, State) ->
 		},
     {reply, Reply, NewState};
 
-handle_call({stop_crawlers}, _From, State) ->
-    error_logger:warning_report({?MODULE, ?LINE, {stop_crawlers, invoked}}),
-    NewState = State#state{
-		 crawlers_status = stopped
-		},
-    {reply, ok, NewState};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -223,7 +207,7 @@ analyze_url(Url) ->
     analyze_url_from_url_status(Url, ebot_db:url_status(Url, Days)).
 
 analyze_url_header(Url) ->
-    ebot_crawler:add_visited_url(Url),
+    ebot_cache:add_visited_url(Url),
     case Result = ebot_web_util:fetch_url_head(Url) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
@@ -290,7 +274,7 @@ analyze_url_body_links(Url, Links) ->
     %% removing already visited urls and not valid
     NotVisitedLinks = lists:filter(
 			fun(U) -> 
-				(not ebot_crawler:is_visited_url(U)) andalso
+				(not ebot_cache:is_visited_url(U)) andalso
 				    ebot_url_util:is_valid_url(U)
 			end,
 			UniqueLinks),
@@ -301,7 +285,7 @@ analyze_url_body_links(Url, Links) ->
 	      %% creating the url in the database if it doen't exists
 	      error_logger:info_report({?MODULE, ?LINE, {adding, U, from_referral, Url}}),
 	      ebot_db:open_or_create_url(U),
-	      ebot_crawler:add_new_url(U),
+	      ebot_cache:add_new_url(U),
 	      case  needed_update_url_referral(
 		      ebot_url_util:is_same_main_domain(Url, U),
 		      ebot_url_util:is_same_domain(Url, U)) of
@@ -381,7 +365,7 @@ crawl(Depth) ->
 	{error, _} ->
 	    timer:sleep( 2000 )
     end,
-    case ebot_web:crawlers_status() of
+    case ebot_crawler:crawlers_status() of
 	started ->
 	    {ok, Sleep} = ebot_util:get_env(crawlers_sleep_time),
 	    timer:sleep( Sleep ),
@@ -434,8 +418,7 @@ start_crawlers(State) ->
 		    State#state.crawlers_list,
 		    Pools),
     NewState = State#state{
-		 crawlers_list = NewCrawlers,
-		 crawlers_status = started
+		 crawlers_list = NewCrawlers
 		},
     NewState.
 
