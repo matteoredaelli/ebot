@@ -25,15 +25,13 @@
 -module(ebot_web_util).
 -author("matteo.redaelli@libero.it").
 
-
 -include("ebot.hrl").
 
 %% API
 -export([
-	 fetch_url/5,
-	 fetch_url_get/4,
-	 fetch_url_head/4,
-	 fetch_url_links/4
+	 fetch_url_get/1,
+	 fetch_url_head/1,
+	 fetch_url_links/1
 	]).
 
 %%--------------------------------------------------------------------
@@ -42,14 +40,14 @@
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
-fetch_url_get(URL, Http_header, Http_options, Request_options) ->
-    fetch_url(URL, get, Http_header, Http_options, Request_options).
+fetch_url_get(URL) ->
+    fetch_url(URL, get).
 
-fetch_url_head(URL, Http_header, Http_options, Request_options) ->
-    fetch_url(URL, head, Http_header, Http_options, Request_options).
+fetch_url_head(URL) ->
+    fetch_url(URL, head).
 
-fetch_url_links(URL, Http_header, Http_options, Request_options) ->
-    case fetch_url_get(URL, Http_header, Http_options, Request_options) of
+fetch_url_links(URL) ->
+    case fetch_url(URL, get) of
 	{error, Reason} ->
 	    {error, Reason};
 	{ok, {_Status, _Headers, Body}} -> 
@@ -60,22 +58,35 @@ fetch_url_links(URL, Http_header, Http_options, Request_options) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-fetch_url(URL, Command, Http_header, Http_options, Request_options) when is_binary(URL) ->
-    fetch_url(binary_to_list(URL), Command, Http_header, Http_options, Request_options);
-fetch_url(URL, Command, Http_header, Http_options, Request_options) ->
-    case http:request(Command, {URL,Http_header},Http_options,[{sync, false}|Request_options]) of
-	{ok, RequestId} ->
-	    receive 
-		{http, {RequestId, Result}} -> 
-		    case Result of 
-			{error, _} ->
-			    Result;
-			Result ->
-			    {ok, Result}
-		    end
-	    after ?EBOT_WEB_TIMEOUT
-		      -> {error, timeout} 
-	    end;
-	Error ->
-	    Error
+fetch_url(Url, Command) when is_binary(Url) ->
+    fetch_url(binary_to_list(Url), Command);
+fetch_url(Url, Command) ->
+    {ok, Http_header} = ebot_util:get_env(web_http_header),
+    {ok, Request_options} = ebot_util:get_env(web_request_options),
+    {ok, Http_options} = ebot_util:get_env(web_http_options),
+    try 
+	case http:request(Command, {Url,Http_header},Http_options,[{sync, false}|Request_options]) of
+	    {ok, RequestId} ->
+		receive 
+		    {http, {RequestId, Result}} -> 
+			case Result of 
+			    {error, AReason} ->
+				error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, error, AReason}}),
+				Result;
+			    Result ->
+				{ok, Result}
+			end
+		after ?EBOT_WEB_TIMEOUT
+		      -> 
+			error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, timeout}}),
+			{error, timeout} 
+		end;
+	    Error ->
+		error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, error, Error}}),
+		Error
+	end
+    catch
+	Reason -> 
+	    error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, cannot_fetch_url, Reason}}),
+	    {error, Reason}
     end.

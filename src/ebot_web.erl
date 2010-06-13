@@ -39,8 +39,6 @@
 	 check_recover_crawlers/0,
 	 crawl/1,
 	 crawlers_status/0,
-	 fetch_url/2,
-	 fetch_url_links/1,
 	 info/0,
 	 show_crawlers_list/0,
 	 start_crawlers/0,
@@ -72,10 +70,6 @@ check_recover_crawlers() ->
     gen_server:call(?MODULE, {check_recover_crawlers}).
 crawlers_status() ->
     gen_server:call(?MODULE, {crawlers_status}).
-fetch_url(Url, Command) ->
-    gen_server:call(?MODULE, {fetch_url, Url, Command}).
-fetch_url_links(Url) ->
-    gen_server:call(?MODULE, {fetch_url_links, Url}).
 info() ->
     gen_server:call(?MODULE, {info}).
 show_crawlers_list() ->
@@ -130,12 +124,6 @@ handle_call({check_recover_crawlers}, _From, State) ->
     {reply, NewCrawlers, NewState};
 handle_call({crawlers_status}, _From, State) ->
     {reply, State#state.crawlers_status, State};
-handle_call({fetch_url, Url, Command}, _From, State) ->
-    Reply = try_fetch_url(Url, Command),
-    {reply, Reply, State};
-handle_call({fetch_url_links, Url}, _From, State) ->
-    Reply = try_fetch_url_links(Url),
-    {reply, Reply, State};
 handle_call({info}, _From, State) ->
     Crawlers = State#state.crawlers_list,
     Reply = lists:map(
@@ -236,7 +224,7 @@ analyze_url(Url) ->
 
 analyze_url_header(Url) ->
     ebot_crawler:add_visited_url(Url),
-    case Result = try_fetch_url(Url, head) of
+    case Result = ebot_web_util:fetch_url_head(Url) of
 	{error, Reason} -> 
 	    error_logger:error_report({?MODULE, ?LINE, {analyze_url_header, Url, skipping_url, Reason}}),
 	    Options = [{update_field_key_value, <<"ebot_errors_count">>, 0},
@@ -257,7 +245,7 @@ analyze_url_header(Url) ->
     Result.
 
 analyze_url_body(Url) ->
-    case try_fetch_url(Url, get) of
+    case ebot_web_util:fetch_url_get(Url) of
 	{ok, {_Status, _Headers, Body}} ->
 	    spawn(?MODULE, analyze_url_body_plugins, [Url, Body]),
 	    error_logger:info_report({?MODULE, ?LINE, {analyze_body_plugins, Url}}),
@@ -456,33 +444,6 @@ start_crawlers(Depth, Total) ->
       fun(_) -> start_crawler(Depth) end,
       lists:seq(1,Total)).
 
-
-try_fetch_url(Url, Command) ->
-    {ok, Http_header} = ebot_util:get_env(web_http_header),
-    {ok, Request_options} = ebot_util:get_env(web_request_options),
-    {ok, Http_options} = ebot_util:get_env(web_http_options),
-    error_logger:info_report({?MODULE, ?LINE, {fetch_url, Command, Url}}),
-    try 
-	ebot_web_util:fetch_url(Url, Command, Http_header,Http_options,Request_options)
-    catch
-	Reason -> 
-	    error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, cannot_fetch_url, Reason}}),
-	    {error, Reason}
-    end.
-
-try_fetch_url_links(Url) ->
-    case fetch_url(Url, get) of
-	{ok, {_Status, _Headers, Body}} ->
-	    error_logger:info_report({?MODULE, ?LINE, {retreiving_links_from_body_of_url, Url}}),
-	    {ok, ebot_html_util:get_links(Body, Url)};
-	{error, Reason} ->
-	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, error, Reason}}),
-	    {error, Reason};
-	Other ->
-	    error_logger:error_report({?MODULE, ?LINE, {fetch_url_links, Url, unknown_error, Other}}),
-	    Other
-    end.
-
 %%====================================================================
 %% EUNIT TESTS
 %%====================================================================
@@ -499,7 +460,7 @@ ebot_web_test() ->
 			     <<"http://www.redaelli.org/matteo">>,
 			     <<"http://www.redaelli.org/matteo/ebot_test/dir1">>
 		       ],
-    UrlLinks = try_fetch_url_links(Url),
+    UrlLinks = ebot_web_util:fetch_url_links(Url),
     ?assertEqual( {ok, ExpectedUrlLinks}, UrlLinks),
     ExpectedExternalLinks = [<<"http://code.google.com/p/oreste/">>,
 			     <<"http://github.com/matteoredaelli/ebot">>],
