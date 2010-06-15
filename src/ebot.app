@@ -21,7 +21,8 @@
     ebot_stats,
     ebot_util,
     ebot_web,
-    ebot_web_util
+    ebot_web_util,
+    ebot_worker_util
   ]},
   {registered, []},
   {mod, {ebot_app, []}},
@@ -82,8 +83,8 @@
 			     {timeout, 10000}
 			    ]},
 	 {web_request_options, [
-			        %{proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
-				{proxy, noproxy}
+			        {proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
+				%{proxy, noproxy}
 			       ]}
 	 %% ---------------------------------------------------------
 	 %% CRAWLER

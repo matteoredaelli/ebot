@@ -27,6 +27,7 @@
 
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, 5000).
+-define(WORKER_TYPE, web).
 
 -include("ebot.hrl").
 
@@ -37,13 +38,14 @@
 	 analyze_url/1,
 	 analyze_url_body_plugins/2,
 	 check_recover_workers/0,
-	 crawl/1,
+	 run/1,
 	 info/0,
+	 remove_worker/1,
 	 show_worker_list/0,
 	 start_workers/0,
+	 start_workers/2,
 	 start_link/0,
-	 statistics/0,
-	 stop_worker/1
+	 statistics/0
 	]).
 
 %% gen_server callbacks
@@ -51,7 +53,7 @@
 	 terminate/2, code_change/3]).
 
 -record(state,{
-	  worker_list = []
+	  worker_list = ebot_worker_util:create_worker_list(?WORKER_TYPE)
 	 }).
 
 %%====================================================================
@@ -71,10 +73,12 @@ show_worker_list() ->
     gen_server:call(?MODULE, {show_worker_list}).
 start_workers() ->
     gen_server:cast(?MODULE, {start_workers}).
+start_workers(Depth, Tot) ->
+    gen_server:cast(?MODULE, {start_workers, Depth, Tot}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
-stop_worker(Crawler) ->
-    gen_server:call(?MODULE, {stop_worker, Crawler}).
+remove_worker(Worker) ->
+    gen_server:cast(?MODULE, {remove_worker, Worker}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -90,14 +94,13 @@ stop_worker(Crawler) ->
 init([]) ->
     {ok, Options} = ebot_util:get_env(web_request_options),
     http:set_options(Options),
-    State = #state{},
     case ebot_util:get_env(start_workers_at_boot) of
 	{ok, true} ->
-	    NewState = start_workers(State);
+	    State = start_workers_pool(#state{});
 	{ok, false} ->
-	    NewState = State
+	    State = #state{}
     end,
-    {ok, NewState}.
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -109,49 +112,21 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 handle_call({check_recover_workers}, _From, State) ->
-    NewCrawlers = check_recover_workers(State),
     NewState = State#state{
-		 worker_list = NewCrawlers
+		 worker_list = ebot_worker_util:check_recover_workers(State#state.worker_list)
 		},
-    {reply, NewCrawlers, NewState};
-handle_call({info}, _From, State) ->
-    Crawlers = State#state.worker_list,
-    Reply = lists:map(
-	      fun({Depth, Pid}) ->
-		      {Depth, process_info(Pid)}
-	      end,
-	      Crawlers),
-    {reply, Reply, State};
-handle_call({statistics}, _From, State) ->
-    {ok, Pools} = ebot_util:get_env(worker_pools),
-    Crawlers = State#state.worker_list,
+    {reply, ok, NewState};
 
-    Depths = lists:sort(
-	       lists:map( 
-		 fun({D,_}) -> D end,
-		 Pools
-		)), 
-    Reply = lists:map(
-	      fun(Depth) ->
-		      Pids = lists:filter(
-			       fun({D,_}) ->  D == Depth end,
-			       Crawlers),
-		      {Depth,length(Pids)}
-	      end,
-	      Depths),
+handle_call({info}, _From, State) ->
+    {reply, ok, State};
+
+handle_call({statistics}, _From, State) ->
+    Reply = ebot_worker_util:statistics(State#state.worker_list),
     {reply, Reply, State};
 
 handle_call({show_worker_list}, _From, State) ->
-    Reply = State#state.worker_list,
+    {?WORKER_TYPE, Reply} = State#state.worker_list,
     {reply, Reply, State};
-
-handle_call({stop_worker, {Depth,Pid}}, _From, State) ->
-    Reply = ok,
-    NewState = State#state{
-		 worker_list = lists:delete({Depth,Pid}, 
-						State#state.worker_list)
-		},
-    {reply, Reply, NewState};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -163,8 +138,22 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
+handle_cast({remove_worker, Worker}, State) ->
+    NewState = State#state{
+		 worker_list = ebot_worker_util:remove_worker(Worker, 
+							      State#state.worker_list)
+		},
+    {noreply, NewState};
+
 handle_cast({start_workers}, State) ->
-    NewState = start_workers(State),
+    NewState = start_workers_pool(State),
+    {noreply, NewState};
+
+handle_cast({start_workers, Depth, Tot}, State) ->
+    NewState = State#state{
+		 worker_list = ebot_worker_util:start_workers(Depth,Tot, 
+								   State#state.worker_list)
+		},
     {noreply, NewState};
 
 handle_cast(_Msg, State) ->
@@ -341,40 +330,6 @@ analyze_url_from_url_status(Url, {ok, {header, HeaderStatus}, {body,_}}) ->
 	    Other
     end.
 
-check_recover_workers(State) ->
-    Crawlers = State#state.worker_list,
-    lists:map( 
-      fun({Depth, Pid}) ->
-	      case erlang:is_process_alive(Pid) of
-		  true ->
-		      error_logger:warning_report({?MODULE, ?LINE, 
-					   {check_recover_workers, status,
-					    proplists:get_value(status, process_info(Pid)) }}),
-		      {Depth, Pid};
-		  false ->
-		      error_logger:warning_report({?MODULE, ?LINE, {check_recover_workers, recovering_dead_worker}}),
-		      start_worker(Depth)
-	      end
-      end,
-      Crawlers).
-
-crawl(Depth) ->
-    case ebot_mq:receive_url_new(Depth) of
-	{ok, {Url, _}} ->
-	    analyze_url(Url);
-	{error, _} ->
-	    timer:sleep( 2000 )
-    end,
-    case ebot_crawler:workers_status() of
-	started ->
-	    {ok, Sleep} = ebot_util:get_env(workers_sleep_time),
-	    timer:sleep( Sleep ),
-	    crawl(Depth);
-	stopped ->
-	    error_logger:warning_report({?MODULE, ?LINE, {stopping_worker, self()}}),
-	    stop_worker( {Depth, self()} )
-    end.
-
 get_env_normalize_url(Url, [{RE,Options}|L]) ->
     case re:run(Url, RE, [{capture, none},caseless]) of
 	match ->
@@ -403,29 +358,29 @@ needed_update_url_referral(_, true, domain) ->
 needed_update_url_referral(_,_,_) ->
     false.
 
-start_worker(Depth) ->
-    Pid = spawn( ?MODULE, crawl, [Depth]),
-    {Depth, Pid}.
+run(Depth) ->
+    case ebot_mq:receive_url_new(Depth) of
+	{ok, {Url, _}} ->
+	    analyze_url(Url);
+	{error, _} ->
+	    timer:sleep( 2000 )
+    end,
+    case ebot_crawler:workers_status() of
+	started ->
+	    {ok, Sleep} = ebot_util:get_env(workers_sleep_time),
+	    timer:sleep( Sleep ),
+	    run(Depth);
+	stopped ->
+	    error_logger:warning_report({?MODULE, ?LINE, {stopping_worker, self()}}),
+	    remove_worker( {Depth, self()} )
+    end.
 
-start_workers(State) ->
-    {ok, Pools} = ebot_util:get_env(worker_pools),
-    
-    NewCrawlers = lists:foldl(
-		    fun({Depth,Tot}, Crawlers) ->
-			    OtherCrawlers = start_workers(Depth, Tot),
-			    lists:append( Crawlers, OtherCrawlers)
-		    end,
-		    State#state.worker_list,
-		    Pools),
-    NewState = State#state{
-		 worker_list = NewCrawlers
-		},
-    NewState.
-
-start_workers(Depth, Total) -> 
-    lists:map(
-      fun(_) -> start_worker(Depth) end,
-      lists:seq(1,Total)).
+start_workers_pool(State) ->
+    {ok, Pool} = ebot_util:get_env(workers_pool),
+    State#state{
+	    worker_list = ebot_worker_util:start_workers_pool(Pool, 
+							      State#state.worker_list)
+	  }.
 
 %%====================================================================
 %% EUNIT TESTS

@@ -28,12 +28,14 @@
 
 %% API
 -export([ 
+	  create_filled_dict/2,
 	  create_filled_queue/2,
 	  get_env/1,
 	  load_settings/1,
 	  info/1,
 	  is_valid_using_all_regexps/2,
 	  is_valid_using_any_regexps/2,
+	  merge_workers_lists/2,
 	  remove_duplicates/1,
 	  safe_binary_to_list/1,
 	  safe_list_to_binary/1,
@@ -41,9 +43,15 @@
 	 ]).
 
 %%====================================================================
-%% EBOT specific Internal functions
+%% EBOT specific functions
 %%====================================================================
 
+create_filled_dict(Value, Keys) ->
+    lists:foldl(
+      fun(K, Acc) -> dict:store(K, Value, Acc) end,
+      dict:new(),
+      Keys
+     ).
 
 create_filled_queue(Value, QueueSize) ->
     lists:foldl(
@@ -64,6 +72,11 @@ info(Config) ->
     Reply = "Options keys: " ++ string:join( KeysStrings, ", "),
     Reply.
 
+merge_workers_lists(Dict1, Dict2) ->
+    dict:merge(
+      fun(_Key,Val1, Val2) -> lists:append(Val1, Val2) end,
+      Dict1,
+      Dict2).
 
 is_valid_using_all_regexps(String, RElist) ->
     lists:all(

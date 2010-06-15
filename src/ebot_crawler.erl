@@ -101,7 +101,6 @@ handle_call({start_workers}, _From, State) ->
     NewState = State#state{
 		 workers_status = started
 		},
-    ebot_web:start_workers(),
     {reply, ok, NewState};
 
 handle_call({stop_workers}, _From, State) ->

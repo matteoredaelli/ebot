@@ -89,7 +89,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		    ebot_web:analyze_url( list_to_binary(Url) ),
 		    Result = "Url Analyzer has started for " ++ Url;
 		false ->
-		    Result = "Invalid/Missing parameter url"
+		    Result = "Invalid/Missing parameter 'url'"
 	    end;
     	"check_recover" ->
 	    Before = ebot_web:show_worker_list(),
@@ -99,13 +99,21 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		integer_to_list(Recovered) ++
 		" crawlers\n";
     	"start" ->
-	    Tot1 = length(ebot_web:show_worker_list()),
-    	    ebot_web:start_workers(),
-	    Tot2 = length(ebot_web:show_worker_list()),
-	    Result = "Starting crawlers: from " ++ 
-		integer_to_list(Tot1) ++
-		" to " ++
-		integer_to_list(Tot2);
+	    Depth = wrq:get_qs_value("depth", ReqData),
+	    Tot = wrq:get_qs_value("tot", ReqData),
+	    case (is_list(Depth) andalso is_list(Tot)) of
+		true ->
+		    Tot1 = length(ebot_web:show_worker_list()),
+		    ebot_web:start_workers(list_to_integer(Depth), list_to_integer(Tot)),
+		    Tot2 = length(ebot_web:show_worker_list()),
+		    Result = "Starting crawlers: from " ++ 
+			integer_to_list(Tot1) ++
+			" to " ++
+			integer_to_list(Tot2);
+		false ->
+		    Result = "Invalid/Missing parameters 'depth' and 'tot'"
+	    end;
+
    	"stop" ->
 	    Tot1 = length(ebot_web:show_worker_list()),
     	    ebot_crawler:stop_workers(),
