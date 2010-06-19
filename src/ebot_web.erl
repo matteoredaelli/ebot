@@ -110,10 +110,11 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 handle_call({check_recover_workers}, _From, State) ->
+    Workers = ebot_worker_util:check_recover_workers(State#state.workers),
     NewState = State#state{
-		 workers = ebot_worker_util:check_recover_workers(State#state.workers)
+		 workers = Workers
 		},
-    {reply, ok, NewState};
+    {reply, Workers, NewState};
 
 handle_call({info}, _From, State) ->
     {reply, ok, State};
@@ -186,7 +187,7 @@ code_change(_OldVsn, State, _Extra) ->
 run(Depth) ->
     case ebot_mq:receive_url_new(Depth) of
 	{ok, {Url, _}} ->
-	    ebot_cache:add_visited_url(Url),
+	    ebot_crawler:add_visited_url(Url),
 	    Result = ebot_web_util:fetch_url_with_only_html_body(Url),
 	    ebot_mq:send_url_fetched({Url,Result});
 	{error, _Reason} ->

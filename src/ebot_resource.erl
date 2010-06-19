@@ -93,7 +93,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 	    end;
     	"check_recover" ->
 	    Before = ebot_web:get_workers(),
-    	    After = ebot_web:check_recover_workers(),
+    	    {_, After} = ebot_web:check_recover_workers(),
 	    Recovered = length(lists:subtract(After, Before)),
 	    Result = "Crawlers: restarted " ++ 
 		integer_to_list(Recovered) ++

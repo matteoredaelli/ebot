@@ -10,7 +10,6 @@
     ebot_deps,
     ebot_resource,
 
-    ebot_cache,
     ebot_crawler,
     ebot_db,
     ebot_db_backend_riak_pb,

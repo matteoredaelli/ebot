@@ -79,9 +79,6 @@ init([]) ->
     EbotDb = {ebot_db,
 	       {ebot_db, start_link, []},
 	       permanent, 5000, worker, dynamic},
-    EbotCache = {ebot_cache,
-	       {ebot_cache, start_link, []},
-	       permanent, 5000, worker, dynamic},
     EbotCrawler = {ebot_crawler,
 	       {ebot_crawler, start_link, []},
 	       permanent, 5000, worker, dynamic},
@@ -91,5 +88,5 @@ init([]) ->
     EbotWeb = {ebot_web,
 	       {ebot_web, start_link, []},
 	       permanent, 5000, worker, dynamic},
-    Processes = [EbotAmqp, EbotDb, EbotCache, EbotCrawler, EbotHtml, EbotWeb, Web],
+    Processes = [EbotAmqp, EbotDb, EbotCrawler, EbotHtml, EbotWeb, Web],
     {ok, {{one_for_one, 10, 10}, Processes}}.
