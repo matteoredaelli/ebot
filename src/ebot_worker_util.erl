@@ -12,11 +12,11 @@
 %% API
 -export([
 	 check_recover_workers/1,
-	 create_worker_list/1,
+	 create_workers/1,
 	 remove_worker/2,
 	 start_worker/2,
 	 start_workers/3,
-	 start_workers_pool/2,
+	 start_workers/2,
 	 statistics/1
 	]).
 
@@ -47,7 +47,7 @@ check_recover_workers({Type, Workers}) ->
 		   Workers),
     {Type, NewWorkers}.
 
-create_worker_list(Type) ->
+create_workers(Type) ->
     {Type, []}.
 
 remove_worker({Depth, Pid}, {Type,Workers}) ->
@@ -60,7 +60,7 @@ start_workers(Depth, Total, {Type,Workers}) ->
       lists:seq(1,Total)
      ).
 
-start_workers_pool(Pool, {Type,Workers}) -> 
+start_workers(Pool, {Type,Workers}) -> 
     lists:foldl(
       fun({Depth, Total}, {T,W}) -> start_workers(Depth, Total, {T,W}) end,
       {Type,Workers},
@@ -109,7 +109,7 @@ worker_module(Type) ->
 -ifdef(TEST).
 
 ebot_worker_test() ->
-    {web, Workers} = create_worker_list(web),
+    {web, Workers} = create_workers(web),
 
     ?assertEqual( [], Workers),
     {web, Workers2} = add_worker({0,pid1}, {web,Workers}),

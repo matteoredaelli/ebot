@@ -92,7 +92,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		    Result = "Invalid/Missing parameter 'url'"
 	    end;
     	"check_recover" ->
-	    Before = ebot_web:show_worker_list(),
+	    Before = ebot_web:get_workers(),
     	    After = ebot_web:check_recover_workers(),
 	    Recovered = length(lists:subtract(After, Before)),
 	    Result = "Crawlers: restarted " ++ 
@@ -103,9 +103,9 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 	    Tot = wrq:get_qs_value("tot", ReqData),
 	    case (is_list(Depth) andalso is_list(Tot)) of
 		true ->
-		    Tot1 = length(ebot_web:show_worker_list()),
+		    Tot1 = length(ebot_web:get_workers()),
 		    ebot_web:start_workers(list_to_integer(Depth), list_to_integer(Tot)),
-		    Tot2 = length(ebot_web:show_worker_list()),
+		    Tot2 = length(ebot_web:get_workers()),
 		    Result = "Starting crawlers: from " ++ 
 			integer_to_list(Tot1) ++
 			" to " ++
@@ -115,7 +115,7 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 	    end;
 
    	"stop" ->
-	    Tot1 = length(ebot_web:show_worker_list()),
+	    Tot1 = length(ebot_web:get_workers()),
     	    ebot_crawler:stop_workers(),
 	    Result = "Stopping " ++ 
 		integer_to_list(Tot1) ++

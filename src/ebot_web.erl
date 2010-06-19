@@ -41,7 +41,7 @@
 	 run/1,
 	 info/0,
 	 remove_worker/1,
-	 show_worker_list/0,
+	 get_workers/0,
 	 start_workers/0,
 	 start_workers/2,
 	 start_link/0,
@@ -53,7 +53,7 @@
 	 terminate/2, code_change/3]).
 
 -record(state,{
-	  worker_list = ebot_worker_util:create_worker_list(?WORKER_TYPE)
+	  workers = ebot_worker_util:create_workers(?WORKER_TYPE)
 	 }).
 
 %%====================================================================
@@ -69,8 +69,8 @@ check_recover_workers() ->
     gen_server:call(?MODULE, {check_recover_workers}).
 info() ->
     gen_server:call(?MODULE, {info}).
-show_worker_list() ->
-    gen_server:call(?MODULE, {show_worker_list}).
+get_workers() ->
+    gen_server:call(?MODULE, {get_workers}).
 start_workers() ->
     gen_server:cast(?MODULE, {start_workers}).
 start_workers(Depth, Tot) ->
@@ -96,7 +96,7 @@ init([]) ->
     http:set_options(Options),
     case ebot_util:get_env(start_workers_at_boot) of
 	{ok, true} ->
-	    State = start_workers_pool(#state{});
+	    State = start_workers(#state{});
 	{ok, false} ->
 	    State = #state{}
     end,
@@ -113,7 +113,7 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({check_recover_workers}, _From, State) ->
     NewState = State#state{
-		 worker_list = ebot_worker_util:check_recover_workers(State#state.worker_list)
+		 workers = ebot_worker_util:check_recover_workers(State#state.workers)
 		},
     {reply, ok, NewState};
 
@@ -121,11 +121,11 @@ handle_call({info}, _From, State) ->
     {reply, ok, State};
 
 handle_call({statistics}, _From, State) ->
-    Reply = ebot_worker_util:statistics(State#state.worker_list),
+    Reply = ebot_worker_util:statistics(State#state.workers),
     {reply, Reply, State};
 
-handle_call({show_worker_list}, _From, State) ->
-    {?WORKER_TYPE, Reply} = State#state.worker_list,
+handle_call({get_workers}, _From, State) ->
+    {?WORKER_TYPE, Reply} = State#state.workers,
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
@@ -140,19 +140,19 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({remove_worker, Worker}, State) ->
     NewState = State#state{
-		 worker_list = ebot_worker_util:remove_worker(Worker, 
-							      State#state.worker_list)
+		 workers = ebot_worker_util:remove_worker(Worker, 
+							      State#state.workers)
 		},
     {noreply, NewState};
 
 handle_cast({start_workers}, State) ->
-    NewState = start_workers_pool(State),
+    NewState = start_workers(State),
     {noreply, NewState};
 
 handle_cast({start_workers, Depth, Tot}, State) ->
     NewState = State#state{
-		 worker_list = ebot_worker_util:start_workers(Depth,Tot, 
-								   State#state.worker_list)
+		 workers = ebot_worker_util:start_workers(Depth,Tot, 
+								   State#state.workers)
 		},
     {noreply, NewState};
 
@@ -375,11 +375,11 @@ run(Depth) ->
 	    remove_worker( {Depth, self()} )
     end.
 
-start_workers_pool(State) ->
+start_workers(State) ->
     {ok, Pool} = ebot_util:get_env(workers_pool),
     State#state{
-	    worker_list = ebot_worker_util:start_workers_pool(Pool, 
-							      State#state.worker_list)
+	    workers = ebot_worker_util:start_workers(Pool, 
+							      State#state.workers)
 	  }.
 
 %%====================================================================

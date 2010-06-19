@@ -83,8 +83,8 @@
 			     {timeout, 10000}
 			    ]},
 	 {web_request_options, [
-			        {proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
-				%{proxy, noproxy}
+			        %{proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
+				{proxy, noproxy}
 			       ]}
 	 %% ---------------------------------------------------------
 	 %% CRAWLER

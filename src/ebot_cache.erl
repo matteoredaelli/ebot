@@ -47,7 +47,7 @@
 
 -record(state, {
 	  workers_status = started,  %% or stopped
-	  worker_list = [],
+	  workers = [],
 	  new_urls = queue:new(),
 	  new_urls_counter = 0,
 	  visited_urls = queue:new(),
