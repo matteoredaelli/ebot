@@ -45,7 +45,9 @@
 %% API
 -export([
 	 start_link/0,
+	 receive_url_fetched/1,
 	 receive_url_new/1,
+	 send_url_fetched/1,
 	 send_url_new/1,
 	 send_url_processed/1,
 	 send_url_refused/1,
@@ -71,14 +73,18 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+receive_url_fetched(Depth) ->
+    gen_server:call(?MODULE, {receive_url, <<"fetched">>, Depth}).
 receive_url_new(Depth) ->
-    gen_server:call(?MODULE, {receive_url_new, Depth}).
+    gen_server:call(?MODULE, {receive_url, <<"new">>, Depth}).
+send_url_fetched(Payload) ->
+    gen_server:cast(?MODULE, {send_url, <<"fetched">>, Payload}).
 send_url_new(Payload) ->
-    gen_server:cast(?MODULE, {send_url_new, Payload}).
+    gen_server:cast(?MODULE, {send_url, <<"new">>, Payload}).
 send_url_processed(Payload) ->
-    gen_server:cast(?MODULE, {send_url_processed, Payload}).
+    gen_server:cast(?MODULE, {send_url, <<"processed">>, Payload}).
 send_url_refused(Payload) ->
-    gen_server:cast(?MODULE, {send_url_refused, Payload}).
+    gen_server:cast(?MODULE, {send_url, <<"refused">>, Payload}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
 
@@ -130,8 +136,8 @@ init([]) ->
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
 
-handle_call({receive_url_new, Depth}, _From, State) ->
-    Reply = amqp_receive_url(<<"new">>, Depth, State),
+handle_call({receive_url, Key, Depth}, _From, State) ->
+    Reply = amqp_receive_url(Key, Depth, State),
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
@@ -156,14 +162,8 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({send_url_new, Payload}, State) ->
-    amqp_send_url(<<"new">>, Payload, State),
-    {noreply, State};
-handle_cast({send_url_processed, Payload}, State) ->
-    amqp_send_url(<<"processed">>, Payload, State),
-    {noreply, State};
-handle_cast({send_url_refused, Payload}, State) ->
-    amqp_send_url(<<"refused">>, Payload, State),
+handle_cast({send_url, Key, Payload}, State) ->
+    amqp_send_url(Key, Payload, State),
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -223,7 +223,8 @@ amqp_basic_get_message(Channel, Queue) ->
 			    #'basic.get'{queue = Queue, no_ack = true}) of
 	 {#'basic.get_ok'{}, Content} ->
 	     #amqp_msg{payload = Payload} = Content,
-	     error_logger:info_report({?MODULE, ?LINE, {get_url, Queue, Payload}}),
+%	     {Url, _} = Payload,
+	     error_logger:info_report({?MODULE, ?LINE, {get_url, from_queue, Queue}}),
 	     {ok, payload_decode(Payload)};
 	 Else ->
 	     {error, Else}
@@ -240,7 +241,7 @@ amqp_send_url(Key, Payload = {Url, _}, State) ->
     RoutingKey = get_url_queue_name(Key, Depth),
     amqp_send_message(RoutingKey, Payload, State).
 
-amqp_send_message(RoutingKey, Payload, State) ->
+amqp_send_message(RoutingKey, Payload = {Url,_}, State) ->
     Channel =  State#state.channel,
     Exchange =  State#state.exchange,
     BasicPublish = #'basic.publish'{exchange = Exchange, 
@@ -261,9 +262,9 @@ amqp_send_message(RoutingKey, Payload, State) ->
     end,
     case Result = amqp_channel:cast(Channel, BasicPublish, _MsgPayload = Msg) of
 	ok ->
-	    error_logger:info_report({?MODULE, ?LINE, {send_url, RoutingKey, Payload}});
+	    error_logger:info_report({?MODULE, ?LINE, {send_url, RoutingKey, Url}});
 	else ->
-	    error_logger:error_report({?MODULE, ?LINE, {cannot_send_url, RoutingKey, Payload}})
+	    error_logger:error_report({?MODULE, ?LINE, {cannot_send_url, RoutingKey, Url}})
     end,
     Result.
 
@@ -335,7 +336,13 @@ payload_encode(Payload) ->
 
 ebot_mq_test() ->
     Url = <<"http://www.redaelli.org/matteo/ebot_test/">>,
-    ebot_mq:send_url_new({Url,false}),
-    ?assertEqual( {ok, {Url,false}}, ebot_mq:receive_url_new(2)).
+    Payload = {Url,false},
+    ?assertEqual( Payload, 
+		  payload_decode(payload_encode(Payload))),
+    ?assertEqual( <<"ebot.url.new.1">>, 
+		  get_url_queue_name(<<"new">>, 1)),
+    ebot_mq:send_url_new(Payload),
+    ?assertEqual( {ok, Payload}, 
+		  ebot_mq:receive_url_new(2) ).
 
 -endif.

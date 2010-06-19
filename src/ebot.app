@@ -16,6 +16,7 @@
     ebot_db_backend_riak_pb,
     ebot_db_backend_couchdb,
     ebot_db_util,
+    ebot_html,
     ebot_html_util,
     ebot_mq,
     ebot_stats,

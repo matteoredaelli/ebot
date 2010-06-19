@@ -25,7 +25,9 @@
 -module(ebot_html_util).
 
 %% API
--export([get_links/2]).
+-export([
+	 get_links/2
+	]).
 
 %%====================================================================
 %% API

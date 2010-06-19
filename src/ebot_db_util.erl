@@ -133,32 +133,21 @@ update_url_doc(Doc, []) ->
 %% Function: update_url_head_doc
 %% Description: update a doc url using the output of http:get(url, head)
 %%--------------------------------------------------------------------
-  
-update_url_head_doc(Doc, {error, Reason}, _) ->
-    %% MAYBE, CODE NEVER REACHED
-    update_doc_by_key_value(Doc, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason)));
 
-update_url_head_doc(Doc, {ok, {{_,Http_returncode,_}, Headers, _Body}}, Header_keys ) ->	    
+update_url_head_doc(Doc, {{_,Http_returncode,_}, Headers, _Body}, Header_keys ) ->	    
     Doc2 = lists:foldl(
 	     fun(BKey, Document) ->
 		     Value = proplists:get_value(
 			       binary_to_list(BKey),
 			       Headers,
 			       ""),
-		     error_logger:info_report({?MODULE, ?LINE, {update_url_head_doc, BKey, Value}}),
-		     %% some urls may not contain the header entries we want to trak
-		     case Value of
-			 undefined ->
-			     error_logger:info_report({?MODULE, ?LINE, {update_url_head_doc, BKey, headkey_not_found}}),
-			     ok;
-			 _Else ->
-			     NewBKey = list_to_binary(re:replace(binary_to_list(BKey), "-", "_", [global, {return,list}])),
-			     BValue = ebot_util:safe_list_to_binary(Value),
-			     doc_set_value(
-			       NewBKey, 
-			       BValue,
-			       Document)
-		     end
+		     NewBKey = list_to_binary(re:replace(binary_to_list(BKey), "-", "_", [global, {return,list}])),
+		     error_logger:info_report({?MODULE, ?LINE, {update_url_head_doc, NewBKey, Value}}),
+		     BValue = ebot_util:safe_list_to_binary(Value),
+		     doc_set_value(
+		       NewBKey, 
+		       BValue,
+		       Document)
 	     end,
 	     Doc,
 	     Header_keys
@@ -201,6 +190,7 @@ doc_get_value(Key, Doc) ->
     end.
 
 doc_set_value(Key, Value, Doc) ->
+    error_logger:info_report({?MODULE, ?LINE, {doc_set_value, Key, Value, Doc}}),
     dict:store(Key, Value, Doc).
 
 %% removing_db_stardard_keys(Keys) ->

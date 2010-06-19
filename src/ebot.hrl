@@ -34,3 +34,7 @@
 
 -define(EBOT_BODY_ANALYZER_PLUGINS, [{ebot_plugin_body_analyzer_sample,analyze_url_body}]).
 
+%% -----------------------------------------------------------------------
+%% WORKERS
+%% -----------------------------------------------------------------------
+-define(EBOT_EMPTY_QUEUE_TIMEOUT, 10000).

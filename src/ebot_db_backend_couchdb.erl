@@ -87,6 +87,7 @@ open_doc(Db, Id) ->
     end.
 
 save_doc(Db, Doc) ->
-    couchbeam_db:save_doc(Db, {dict:to_list(Doc)}).
+    {Doc1} = couchbeam_db:save_doc(Db, {dict:to_list(Doc)}),
+    dict:from_list(Doc1).
 
 

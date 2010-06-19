@@ -46,8 +46,6 @@
 	 terminate/2, code_change/3]).
 
 -record(state, {
-	  workers_status = started,  %% or stopped
-	  workers = [],
 	  new_urls = queue:new(),
 	  new_urls_counter = 0,
 	  visited_urls = queue:new(),
@@ -165,7 +163,7 @@ handle_cast({add_new_url, Url}, State) ->
 	true  ->
 	    NewState = State;
 	false ->
-	    ebot_mq:send_url_new({Url,false}),
+	    ebot_mq:send_url_new({Url,empty}),
 	    {{value, _Item}, NewQueue} = queue:out(Queue),
 	    NewState = State#state{
 			 new_urls = queue:in(Url, NewQueue),

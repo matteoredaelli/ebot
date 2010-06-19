@@ -29,6 +29,7 @@
 
 %% API
 -export([
+	 fetch_url_with_only_html_body/1,
 	 fetch_url_get/1,
 	 fetch_url_head/1,
 	 fetch_url_links/1
@@ -39,6 +40,20 @@
 %%
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
+
+fetch_url_with_only_html_body(Url) ->
+    Result = fetch_url_head(Url),
+    case Result of 
+	{error, Reason} ->
+	    {error, Reason};   
+	{ok, {_Status, Headers, _}} ->
+	    case is_text_html_mime_url(Headers) of
+		true ->
+		    fetch_url_get(Url);
+		false ->
+		    Result
+	    end
+    end.
 
 fetch_url_get(URL) ->
     fetch_url(URL, get).
@@ -90,3 +105,43 @@ fetch_url(Url, Command) ->
 	    error_logger:error_report({?MODULE, ?LINE, {fetch_url, Url, cannot_fetch_url, Reason}}),
 	    {error, Reason}
     end.
+
+
+is_text_html_mime_url(Headers) ->
+    Contenttype = proplists:get_value("content-type", Headers),
+    case Contenttype of
+	undefined ->
+	    false;
+	Contenttype ->
+	    case re:run(Contenttype, "^text/html",[{capture, none},caseless] ) of
+		match ->
+		    true;
+		nomatch ->
+		    false
+	    end
+    end.
+
+
+-include_lib("eunit/include/eunit.hrl").
+
+-ifdef(TEST).
+
+ebot_web_test() ->
+    Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
+    Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
+
+    H1 = [{"connection","Keep-Alive"},
+	  {"content-type","text/html"},
+	  {"keep-alive","timeout=15, max=99"}],
+
+    H2 = [{"connection","Keep-Alive"},
+	  {"content-length","725"},
+	  {"content-type","text/txt"}],
+
+    ?assertEqual(true, is_text_html_mime_url(H1)),
+    ?assertEqual(false, is_text_html_mime_url(H2)),
+
+    {ok,{_Status, Headers, _Body}} = fetch_url_with_only_html_body(Url),
+    ?assertEqual(true, is_text_html_mime_url(Headers)).
+
+-endif.
