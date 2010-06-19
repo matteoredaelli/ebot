@@ -72,7 +72,7 @@ statistics({Type,Workers}) ->
     lists:map(
       fun(Depth) ->
 	      {Type, NewWorkers} = filter_workers_by_depth(Depth, {Type, Workers}),
-	      {Depth, length(NewWorkers)}
+	      {"worker-" ++ atom_to_list(Type) ++ "-" ++ integer_to_list(Depth), length(NewWorkers)}
       end,
       lists:seq(0, TotQueues)
      ).

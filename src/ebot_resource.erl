@@ -65,7 +65,7 @@ command(_Method, "ping", _Tokens, _ReqData) ->
 command(Method, Command, [], _ReqData) ->
     io_lib:format("Unknow option: method=~ts, command=~ts", [Method, Command]);
 
-command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
+command(_Method, "crawler", [Command|_Tokens], ReqData) ->
     case Command of
 	"add_url" ->
 %	    case Method of
@@ -91,35 +91,17 @@ command(_Method, "crawlers", [Command|_Tokens], ReqData) ->
 		false ->
 		    Result = "Invalid/Missing parameter 'url'"
 	    end;
-    	"check_recover" ->
-	    Before = ebot_web:get_workers(),
-    	    {_, After} = ebot_web:check_recover_workers(),
-	    Recovered = length(lists:subtract(After, Before)),
-	    Result = "Crawlers: restarted " ++ 
-		integer_to_list(Recovered) ++
-		" crawlers\n";
-    	"start" ->
-	    Depth = wrq:get_qs_value("depth", ReqData),
-	    Tot = wrq:get_qs_value("tot", ReqData),
-	    case (is_list(Depth) andalso is_list(Tot)) of
-		true ->
-		    Tot1 = length(ebot_web:get_workers()),
-		    ebot_web:start_workers(list_to_integer(Depth), list_to_integer(Tot)),
-		    Tot2 = length(ebot_web:get_workers()),
-		    Result = "Starting crawlers: from " ++ 
-			integer_to_list(Tot1) ++
-			" to " ++
-			integer_to_list(Tot2);
-		false ->
-		    Result = "Invalid/Missing parameters 'depth' and 'tot'"
-	    end;
-
+   	"start" ->
+    	    ebot_crawler:start_workers(),
+	    Result = "Crawler Started!";
    	"stop" ->
-	    Tot1 = length(ebot_web:get_workers()),
+	    TotH1 = length(ebot_html:get_workers()),
+	    TotW1 = length(ebot_web:get_workers()),
     	    ebot_crawler:stop_workers(),
-	    Result = "Stopping " ++ 
-		integer_to_list(Tot1) ++
-		" crawlers";
+	    Result = "Stopped crawler! Stopping workers: html=" ++ 
+		integer_to_list(TotH1) ++
+		", web=" ++
+		integer_to_list(TotW1);
     	Else ->
     	    Result = Else
     end,
@@ -137,5 +119,35 @@ command(_Method, "stats", [Command|_Tokens], _ReqData) ->
     	Else ->
     	    Result = Else
     end,
-    Result.
+    Result;
 
+command(_Method, "worker", [Worker,Command|_Tokens], ReqData) ->
+    %% TODO : check if worker is valid
+    Module = list_to_atom("ebot_" ++ Worker),
+    case Command of
+    	"check_recover" ->
+	    Before = Module:get_workers(),
+    	    {_, After} = Module:check_recover_workers(),
+	    Recovered = length(lists:subtract(After, Before)),
+	    Result = "Workers: restarted " ++ 
+		integer_to_list(Recovered) ++
+		"\n";
+    	"start" ->
+	    Depth = wrq:get_qs_value("depth", ReqData),
+	    Tot = wrq:get_qs_value("tot", ReqData),
+	    case (is_list(Depth) andalso is_list(Tot)) of
+		true ->
+		    Tot1 = length(ebot_web:get_workers()),
+		    Module:start_workers(list_to_integer(Depth), list_to_integer(Tot)),
+		    Tot2 = length(Module:get_workers()),
+		    Result = "Starting workers: from " ++ 
+			integer_to_list(Tot1) ++
+			" to " ++
+			integer_to_list(Tot2);
+		false ->
+		    Result = "Invalid/Missing parameters 'depth' and 'tot'"
+	    end;
+    	Else ->
+    	    Result = Else
+    end,
+    Result.
