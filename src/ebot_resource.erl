@@ -127,9 +127,9 @@ command(_Method, "worker", [Worker,Command|_Tokens], ReqData) ->
     case Command of
     	"check_recover" ->
 	    Before = Module:get_workers(),
-    	    {_, After} = Module:check_recover_workers(),
+    	    {Type, After} = Module:check_recover_workers(),
 	    Recovered = length(lists:subtract(After, Before)),
-	    Result = "Workers: restarted " ++ 
+	    Result = atom_to_list(Type) ++ " workers: restarted " ++ 
 		integer_to_list(Recovered) ++
 		"\n";
     	"start" ->
