@@ -44,7 +44,7 @@ do
         LINE1:disk#FF0000:"Disk size"	\
         LINE2:docsK#0000FF:"Doc count"
 
-    rrd="ebot_cache"
+    rrd="ebot_crawler"
 
     /usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \
         --start $start --end now --step $step              \
@@ -56,18 +56,19 @@ do
         LINE1:new_urls#FF0000:"new_urls"	\
         LINE2:visited_urls#0000FF:"visited_urls" 
 
-    rrd="ebot_web"
 
-    /usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \
-        --start $start --end now --step $step              \
-        --title "${rrd} ${start}"       \
-        --vertical-label "Totals" --units-length 6 \
-        --width $width --height $height --units-exponent 0    \
-        DEF:my1=${rrdpath}/${rrd}.rrd:crawlers_0:AVERAGE              \
-        DEF:my2=${rrdpath}/${rrd}.rrd:crawlers_1:AVERAGE              \
-	DEF:my3=${rrdpath}/${rrd}.rrd:crawlers_2:AVERAGE              \
-        LINE1:my1#FF0000:"crawlers_0"	\
-        LINE2:my2#0000FF:"crawlers_1"	\
-	LINE3:my3#00FF00:"crawlers_2"      
+    for rrd in ebot_html ebot_web ; do
+	/usr/bin/rrdtool graph $outdir/${rrd}${start}.png -a PNG   \
+            --start $start --end now --step $step              \
+            --title "${rrd} ${start}"       \
+            --vertical-label "Totals" --units-length 6 \
+            --width $width --height $height --units-exponent 0    \
+            DEF:my1=${rrdpath}/${rrd}.rrd:workers_0:AVERAGE              \
+            DEF:my2=${rrdpath}/${rrd}.rrd:workers_1:AVERAGE              \
+	    DEF:my3=${rrdpath}/${rrd}.rrd:workers_2:AVERAGE              \
+            LINE1:my1#FF0000:"workers_0"	\
+            LINE2:my2#0000FF:"workers_1"	\
+	    LINE3:my3#00FF00:"workers_2"    
+    done
 done
 
