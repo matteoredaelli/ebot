@@ -31,6 +31,7 @@ for rrd in ebot_html ebot_web ; do
 	DS:workers_0:GAUGE:600:0:U	\
 	DS:workers_1:GAUGE:600:0:U	\
 	DS:workers_2:GAUGE:600:0:U	\
+	DS:workers_3:GAUGE:600:0:U	\
 	RRA:AVERAGE:0.5:1:1008	\
 	RRA:AVERAGE:0.5:12:744	\
 	RRA:AVERAGE:0.5:288:365 
