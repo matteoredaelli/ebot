@@ -62,9 +62,6 @@ command(_Method, "ping", _Tokens, _ReqData) ->
 %% urls must be at least
 %% /.+/.+ 
 
-command(Method, Command, [], _ReqData) ->
-    io_lib:format("Unknow option: method=~ts, command=~ts", [Method, Command]);
-
 command(_Method, "crawler", [Command|_Tokens], ReqData) ->
     case Command of
 	"add_url" ->
@@ -150,4 +147,7 @@ command(_Method, "worker", [Worker,Command|_Tokens], ReqData) ->
     	Else ->
     	    Result = Else
     end,
-    Result.
+    Result;
+
+command(Method, Command, _, _ReqData) ->
+    io_lib:format("Unknow option: method=~ts, command=~ts", [Method, Command]).
