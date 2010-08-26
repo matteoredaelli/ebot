@@ -39,7 +39,7 @@
 
 -behaviour(gen_server).
 
--include("../deps/rabbitmq-erlang-client/include/amqp_client.hrl").
+-include("deps/rabbitmq-erlang-client/include/amqp_client.hrl").
 
 
 %% API

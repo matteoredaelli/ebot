@@ -122,11 +122,12 @@ init([]) ->
     {ok, Port} = ebot_util:get_env(db_port),
     case ?EBOT_DB_BACKEND of
 	ebot_db_backend_couchdb ->
+	    lhttpc:start(),
 	    couchbeam:start(),
-	    couchbeam_server:start_connection_link(
+	    Conn = couchbeam_server:start_connection_link(
 	      #couchdb_params{host=Hostname, port=Port} 
 	     ),
-	    Ebotdb = couchbeam_server:open_or_create_db(default, "ebot"),
+	    Ebotdb = couchbeam_server:open_or_create_db(Conn, "ebot"),
 	    State = #state{db=Ebotdb},
 	    {ok, State};
 	ebot_db_backend_riak_pb ->
