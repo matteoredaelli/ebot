@@ -56,6 +56,14 @@ to_text(ReqData, State) ->
 
 json_body(QS) -> mochijson:encode({struct, QS}).
 
+command(_Method, "help", _Tokens, _ReqData) ->
+    "Options:\n" ++
+	"- crawler\n" ++
+	"- help\n" ++
+	"- ping\n" ++
+	"- stats\n" ++
+	"- worker\n"
+	;
 command(_Method, "ping", _Tokens, _ReqData) ->
     "pong";
 

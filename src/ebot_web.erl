@@ -140,7 +140,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({remove_worker, Worker}, State) ->
     NewState = State#state{
 		 workers = ebot_worker_util:remove_worker(Worker, 
-							      State#state.workers)
+							  State#state.workers)
 		},
     {noreply, NewState};
 
@@ -151,7 +151,7 @@ handle_cast({start_workers}, State) ->
 handle_cast({start_workers, Depth, Tot}, State) ->
     NewState = State#state{
 		 workers = ebot_worker_util:start_workers(Depth,Tot, 
-								   State#state.workers)
+							  State#state.workers)
 		},
     {noreply, NewState};
 
@@ -209,13 +209,12 @@ run(Depth) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-
 start_workers(State) ->
     {ok, Pool} = ebot_util:get_env(workers_pool),
     State#state{
-	    workers = ebot_worker_util:start_workers(Pool, 
-							      State#state.workers)
-	  }.
+      workers = ebot_worker_util:start_workers(Pool, 
+					       State#state.workers)
+     }.
 
 %%====================================================================
 %% EUNIT TESTS

@@ -44,7 +44,9 @@ statistics() ->
     lists:foldl(
       fun(Mod, Output) ->
 	      Stats = Mod:statistics(),
-	      Output ++ stats_to_text(Stats)
+	      Output ++ "***********************\nModule " ++ 
+		  atom_to_list(Mod) ++ 
+		  "\n***********************\n" ++ stats_to_text(Stats) ++ "\n"
       end,
       "",
       ?STATS_MODULES).
