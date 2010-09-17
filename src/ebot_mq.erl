@@ -143,13 +143,12 @@ handle_call({receive_url, Key, Depth}, _From, State) ->
 handle_call({statistics}, _From, State) ->
     Channel =  State#state.channel,
     {ok, TotQueues} = ebot_util:get_env(mq_priority_url_queues),
-    Reply = lists:map(
-	       fun(N) -> 
-		       Q = get_url_queue_name(<<"new">>, N), 
-		       queue_statistics(Channel, Q)
+    Reply = lists:foldl(
+	       fun(Key, Result) ->
+		       Result ++ statistics_by_key(Channel, Key, TotQueues)
 	       end,
-	      lists:seq(0, TotQueues)
-	     ),
+	      [],
+	      ?EBOT_URL_KEYS),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
@@ -308,7 +307,16 @@ get_url_queue_name(Key, Depth) ->
     BinDepth = list_to_binary("." ++ integer_to_list(Depth)),
     <<?EBOT_URL_KEY_PREFIX/binary,Key/binary,BinDepth/binary>>.
 
-queue_statistics(Channel, Q) ->
+statistics_by_key(Channel, Key, TotQueues) ->
+    lists:map(
+      fun(N) -> 
+	      Q = get_url_queue_name(Key, N), 
+	      statistics_by_queue(Channel, Q)
+      end,
+      lists:seq(0, TotQueues)
+     ).
+
+statistics_by_queue(Channel, Q) ->
     QueueDeclare = #'queue.declare'{queue=Q},
     #'queue.declare_ok'{queue = Q,
                         message_count = MessageCount,
