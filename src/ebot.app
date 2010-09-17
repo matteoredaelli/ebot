@@ -85,7 +85,7 @@
 			    ]},
 	 {web_request_options, [
 			        %{proxy, {{"proxy.mycompany.com", 80}, ["localhost"]}}
-				{proxy, noproxy}
+				%{proxy, noproxy} % erlang releases < R14A 
 			       ]}
 	 %% ---------------------------------------------------------
 	 %% CRAWLER
