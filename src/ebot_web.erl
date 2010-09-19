@@ -91,7 +91,7 @@ remove_worker(Worker) ->
 %%--------------------------------------------------------------------
 init([]) ->
     {ok, Options} = ebot_util:get_env(web_request_options),
-    http:set_options(Options),
+    httpc:set_options(Options),
     case ebot_util:get_env(start_workers_at_boot) of
 	{ok, true} ->
 	    State = start_workers(#state{});

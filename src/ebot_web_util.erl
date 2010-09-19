@@ -80,7 +80,7 @@ fetch_url(Url, Command) ->
     {ok, Request_options} = ebot_util:get_env(web_request_options),
     {ok, Http_options} = ebot_util:get_env(web_http_options),
     try 
-	case http:request(Command, {Url,Http_header},Http_options,[{sync, false}|Request_options]) of
+	case httpc:request(Command, {Url,Http_header},Http_options,[{sync, false}|Request_options]) of
 	    {ok, RequestId} ->
 		receive 
 		    {http, {RequestId, Result}} -> 
