@@ -141,6 +141,7 @@ update_url_head_doc(Doc, {{_,Http_returncode,_}, Headers, _Body}, Header_keys ) 
 			       binary_to_list(BKey),
 			       Headers,
 			       ""),
+		     %% couchdb doesn't like - characters, so we convert it to _
 		     NewBKey = list_to_binary(re:replace(binary_to_list(BKey), "-", "_", [global, {return,list}])),
 		     error_logger:info_report({?MODULE, ?LINE, {update_url_head_doc, NewBKey, Value}}),
 		     BValue = ebot_util:safe_list_to_binary(Value),
