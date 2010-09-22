@@ -210,7 +210,7 @@ run(Depth) ->
 
 analyze_url(Url,{error, Reason}) ->
     error_logger:error_report({?MODULE, ?LINE, {analyze_url, Url, skipping_url, Reason}}),
-    Options = [{update_field_timestamp, <<"ebot_errors_count">>},
+    Options = [{update_field_counter, <<"ebot_errors_count">>},
 	       {update_field_key_value, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason))}
 	      ],
 
