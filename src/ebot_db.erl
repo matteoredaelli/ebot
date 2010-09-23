@@ -238,9 +238,61 @@ ebot_db_test() ->
     ebot_db:update_url(Url, [{update_field_key_value, Key, 1}]),
     Doc2 = ebot_db:open_url(Url),
     ?assertEqual({ok,1}, dict:find(Key, Doc2)),
-    ebot_db:update_url(Url, [{update_field_key_value, Key, 0}]),
+    ebot_db:update_url(Url, [
+			     {update_field_key_value, <<"ebot_head_error">>, <<"">> },
+			     {update_field_key_value, <<"content_length">>, <<"12345">> },
+			     {update_field_timestamp,<<"ebot_head_visited">>},
+			     {update_field_counter,<<"ebot_visits_count">>},
+			     {update_field_key_value,<<"ebot_errors_count">>,1},
+			     {update_field_key_value, <<"content-type">>, <<"text/html; charset=UTF-8">>}
+			    ]),
     Doc3 = ebot_db:open_url(Url),
-    ?assertEqual({ok,0}, dict:find(Key, Doc3)),
-    ebot_db:delete_url(Url).
+    ?assertEqual({ok,<<"">>}, dict:find(<<"ebot_head_error">>, Doc3)),
+    ?assertEqual({ok,<<"12345">>}, dict:find(<<"content_length">>, Doc3)),
+    ?assertEqual({ok,1}, dict:find(<<"ebot_errors_count">>, Doc3)),
+    ebot_db:update_url(Url, [
+			     {head,
+			      {{"HTTP/1.1",200,"OK"},
+			       [{"cache-control",
+				 "private, max-age=0, must-revalidate"},
+				{"connection","keep-alive"},
+				{"date","Wed, 22 Sep 2010 19:12:39 GMT"},
+				{"via","1.1 varnish"},
+				{"age","0"},
+				{"etag",
+				 "\"9de4ba5a2cf11a66a3543fd2c07ae683\""},
+				{"server","Apache"},
+				{"vary","Accept-Encoding"},
+				{"content-length","11521"},
+				{"content-type","text/html; charset=utf-8"},
+				{"x-powered-by",
+                                   "Phusion Passenger (mod_rails/mod_rack) 2.2.11"},
+				{"x-runtime","20"},
+				{"set-cookie",
+				 "_gitorious_sess=8b512c1b5212a4b330ee2e8a1673153e; domain=.gitorious.org; path=/; expires=Wed, 13 Oct 2010 19:12:39 GMT; HttpOnly"},
+				{"status","200"},
+				{"x-varnish","942297164"}
+			       ],
+			       empty
+			      },
+			      [<<"content-length">>,<<"content-type">>,
+			       <<"server">>,<<"x-powered-by">>, <<"UNKNOWNHEADER">>
+			      ]
+			     }
+			    ]
+		      ),
+    
+    
+%   What happens if you update a not existing url?
+    ebot_db:update_url(<<"http://code.google.com/">>,
+		       [
+			{update_field_counter,<<"ebot_errors_count">>},
+			{update_field_key_value,<<"ebot_head_error">>, <<"timeout">>}
+		       ]
+		      ),
+    Doc4 = ebot_db:open_url(<<"http://code.google.com/">>),
+    ?assertEqual({ok,<<"timeout">>}, dict:find(<<"ebot_head_error">>, Doc4)).
+    
+%    ebot_db:delete_url(Url).
 %    ?assertEqual(not_found,  ebot_db:open_url(Url)).
 -endif.

@@ -109,14 +109,13 @@ save_doc(Db, Bucket, Key, Doc) ->
 	{ok, Object} ->
 	    NewObject = riakc_obj:update_value(Object, NewDoc)
     end,
-    case Result = riakc_pb_socket:put(Db, NewObject) of
+    case riakc_pb_socket:put(Db, NewObject) of
 	ok ->
-	    error_logger:info_report({?MODULE, ?LINE, {save_doc, Key, ok}}),
-	    ok;
+	    error_logger:info_report({?MODULE, ?LINE, {save_doc, Key, ok}});
 	Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {save_doc, Key, error, Else}})
     end,
-    Result.
+    Doc.
 
 
 
