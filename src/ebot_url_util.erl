@@ -299,6 +299,7 @@ ebot_url_test() ->
     Utest = "http://www.redaelli.org/matteo/ebot_test/",
     Udir1 = "http://www.redaelli.org/matteo/ebot_test/dir1/",
     Udir11 = "http://www.redaelli.org/matteo/ebot_test/dir1/dir11/",
+    Utyre1 = "http://www.tyres-pneus-online.co.uk/car-tyres-FORTUNA/F1000/155,65,R13,73,T.html",
     [
      ?assertEqual(Home, url_add_final_slash(Domain)),
 
@@ -306,9 +307,12 @@ ebot_url_test() ->
 
      ?assertEqual(0, ebot_url_util:url_depth(Domain)),
      ?assertEqual(0, ebot_url_util:url_depth(Home)),
+     ?assertEqual(0, ebot_url_util:url_depth(Home ++ "index.html")),
+     ?assertEqual(1, ebot_url_util:url_depth(Home ++ "matteo/index.html")),
      ?assertEqual(2, ebot_url_util:url_depth(Utest)),
      ?assertEqual(3, ebot_url_util:url_depth(Udir1)),
      ?assertEqual(4, ebot_url_util:url_depth(Udir11)),
+     ?assertEqual(2, ebot_url_util:url_depth(Utyre1)),
 
      ?assertEqual(Domain, url_domain(Home)),
      ?assertEqual(Domain, url_domain(Utest)),
@@ -318,6 +322,10 @@ ebot_url_test() ->
      ?assertEqual(Utest, url_using_max_depth(Udir11, 2)),
      ?assertEqual(Udir1, url_using_max_depth(Udir1, 3)),
      ?assertEqual(Udir11, url_using_max_depth(Udir11, 4)),
+     ?assertEqual(Utyre1, url_using_max_depth(Utyre1, 4)),
+     ?assertEqual(Utyre1, url_using_max_depth(Utyre1, 4)),
+     ?assertEqual(Utyre1, url_using_max_depth(Utyre1, 2)),
+     ?assertEqual("http://www.tyres-pneus-online.co.uk/car-tyres-FORTUNA/", url_using_max_depth(Utyre1, 1)),
 
      ?assertEqual(true, is_external_link( <<"http://github.com/matteoredaelli/ebot">>,  
 					  <<"http://www.redaelli.org/">>)),

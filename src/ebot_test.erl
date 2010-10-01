@@ -27,6 +27,7 @@
 -export([
 	 test/0,
 	 test1/0,
+	 test1_tyre/0,
 	 test2/0,
 	 test_oss/0
 	]).
@@ -43,6 +44,10 @@ test1() ->
 
 test2() ->
     Urls = [ <<"http://code.google.com/">> ],
+    test_workers_with_urls(Urls).
+
+test1_tyre() ->
+    Urls = [ <<"http://www.tyres-pneus-online.co.uk/">> ],
     test_workers_with_urls(Urls).
 
 test_oss() ->
