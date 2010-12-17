@@ -43,11 +43,11 @@
 %%--------------------------------------------------------------------
 
 delete_url(Db, Url) ->
-    case Doc = couchbeam_db:open_doc(Db, Url) of
-	not_found ->
+    case couchbeam:open_doc(Db, Url) of
+	{error, _} ->
 	    ok;
-	Doc ->
-	    couchbeam_db:delete_doc(Db, Doc)
+	{ok, {Doc}} ->
+	    couchbeam:delete_doc(Db, Doc)
     end.
 
 empty_db_urls(_Db) ->
@@ -69,7 +69,7 @@ save_url_doc(Db, Url, Doc) ->
     save_doc(Db, NewDoc).
 
 statistics(Db) ->
-    Doc = couchbeam_db:info(Db),
+    Doc = couchbeam:db_info(Db),
     DiskSize = round(proplists:get_value(<<"disk_size">>, Doc) / 1024 / 1024),
     DocCount = proplists:get_value(<<"doc_count">>, Doc),
     [{<<"disk_size">>, DiskSize}, {<<"doc_count">>,DocCount}].
@@ -79,15 +79,15 @@ statistics(Db) ->
 %%====================================================================
 
 open_doc(Db, Id) ->
-    case couchbeam_db:open_doc(Db, Id) of
-	not_found ->
-	    not_found;
-	{Doc} ->
-	    dict:from_list(Doc)
+    case couchbeam:open_doc(Db, Id) of
+	{ok, {Doc}} ->
+	    dict:from_list(Doc);
+	{error, Reason} ->
+	    Reason
     end.
 
 save_doc(Db, Doc) ->
-    {Doc1} = couchbeam_db:save_doc(Db, {dict:to_list(Doc)}),
+    {ok, {Doc1}} = couchbeam:save_doc(Db, {dict:to_list(Doc)}),
     dict:from_list(Doc1).
 
 
