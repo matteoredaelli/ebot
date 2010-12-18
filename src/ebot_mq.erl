@@ -203,12 +203,12 @@ code_change(_OldVsn, State, _Extra) ->
 
 ampq_connect_and_get_channel(Params, Durable) ->
     %% Start a connection to the server
-    Connection = amqp_connection:start_network(Params),
+    {ok, Connection} = amqp_connection:start(network, Params),
 
     %% Once you have a connection to the server, you can start an AMQP channel
     %% TODO : verify 
 
-    Channel = amqp_connection:open_channel(Connection),
+    {ok, Channel} = amqp_connection:open_channel(Connection),
     ExchangeDeclare = #'exchange.declare'{
       exchange = ?EBOT_EXCHANGE, 
       type = <<"topic">>,
