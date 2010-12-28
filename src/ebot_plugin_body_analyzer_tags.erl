@@ -16,58 +16,50 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %%
 %%%-------------------------------------------------------------------
-%%% File    : ebot_html_util.erl
+%%% File    : ebot_plugin_body_analyzer_tags.erl
 %%% Author  : matteo <matteo@pirelli.com>
 %%% Description : 
 %%%
-%%% Created :  3 Apr 2010 by matteo <matteo@pirelli.com>
+%%% Created :  4 Jun 2010 by matteo <matteo.redaelli@libero.it>
 %%%-------------------------------------------------------------------
--module(ebot_html_util).
+-module(ebot_plugin_body_analyzer_tags).
 
 %% API
--export([
-	 get_links/2
-	]).
+-export([analyze_url_body/2]).
 
 %%====================================================================
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% Function: get_links 
+%% Function: 
 %% Description:
 %%--------------------------------------------------------------------
 
-get_links(Html, ParentUrl) when is_binary(ParentUrl) ->
-    Links = get_links(Html, binary_to_list(ParentUrl)),
-    lists:map( fun list_to_binary/1, Links);
+analyze_url_body(Url, Body) ->
+    {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags),
+    lists:map(
+      fun(Tag) ->
+	      error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tags, Url, Tag}}),
+	      Value = get_tag_value(Body, Tag),
+	      {update_field_key_value, Tag, Value}
+      end,
+      BodyTags
+     ).
 
-get_links(Html, ParentUrl) ->
-    Tokens = mochiweb_html:tokens(Html),
-
-    List = lists:foldl(
-	     fun(Token, Links) -> 
-		     case Token of 
-			 {start_tag,<<"a">>,[{<<"href">>,Url}],false} ->
-			     case ebot_url_util:is_valid_link(Url) of
-				 true ->
-				     AbsoluteUrl = ebot_url_util:convert_to_absolute_url( 
-						     binary_to_list(Url), 
-						     ParentUrl
-						    ),
-				     [AbsoluteUrl|Links];
-				 false ->
-				     Links
-			     end;
-			 _Else ->
-			     Links
-		     end
-	     end,
-	     [], 
-	     Tokens
-	    ),
-    ebot_util:remove_duplicates(List).
-    
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
+%% works for <<"title">>
+get_tag_value(Html, TagName) ->
+    Tag =  {start_tag,TagName,[],false},
+    case find_tag(Html, Tag) of
+	[Tag,  {data, Title, false} | _Tokens] ->
+	    Title;
+	_Else ->
+	    <<"">>
+    end.
+
+find_tag(Html, Tag) ->
+    Tokens = mochiweb_html:tokens(Html),
+    lists:dropwhile(fun(E) -> E =/= Tag end, Tokens).
