@@ -31,8 +31,15 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% Function: 
-%% Description:
+%% Function: analyze_url_bod
+%% Description: All values of tags found in the option "tobe_saved_body_tags" 
+%% of file sys.config will be saved to db
+%%
+%% supported tags are: title
+%%      {tobe_saved_body_tags, 
+%%	  [
+%%	   <<"title">>
+%%	  ]},
 %%--------------------------------------------------------------------
 
 analyze_url_body(Url, Body) ->
