@@ -44,10 +44,11 @@
 
 analyze_url_body(Url, Body) ->
     {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags),
+    Tokens = mochiweb_html:tokens(Body),
     lists:map(
       fun(Tag) ->
 	      error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tags, Url, Tag}}),
-	      Value = get_tag_value(Body, Tag),
+	      Value = get_tag_value(Tokens, Tag),
 	      {update_field_key_value, Tag, Value}
       end,
       BodyTags
@@ -57,16 +58,53 @@ analyze_url_body(Url, Body) ->
 %% Internal functions
 %%====================================================================
 
-%% works for <<"title">>
-get_tag_value(Html, TagName) ->
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% DESCRITION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% {start_tag,<<"meta">>,
+%%            [{<<"name">>,<<"description">>},
+%%             {<<"content">>,<<"Website dei Fratelli Redaell"...>>}],
+%%            true},
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% KEYWORDS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% {start_tag,<<"meta">>,
+%%            [{<<"name">>,<<"keywords">>},
+%%             {<<"content">>,<<"redaelli,carate brianza,opensource,l"...>>}],\
+%%            true},
+%% {data,<<"\n">>,true},
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% IMG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% {start_tag,<<"img">>,
+%%            [{<<"src">>,<<"images/matteo.jpg">>}],
+%%            true},
+%% {start_tag,<<"img">>,
+%%            [{<<"class">>,<<"image">>},
+%%             {<<"src">>,
+%%              <<"http://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Carate_bria"...>>},
+%%             {<<"width">>,<<"120">>},
+%%             {<<"alt">>,<<"Icon">>}],
+%%            true}]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TITLE (<<"title">>)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_tag_value(Tokens, TagName) ->
     Tag =  {start_tag,TagName,[],false},
-    case find_tag(Html, Tag) of
-	[Tag,  {data, Title, false} | _Tokens] ->
+    case find_tag(Tokens, Tag) of
+	[Tag,  {data, Title, false} | _OtherTokens] ->
 	    Title;
 	_Else ->
 	    <<"">>
     end.
 
-find_tag(Html, Tag) ->
-    Tokens = mochiweb_html:tokens(Html),
+
+find_tag(Tokens, Tag) ->
     lists:dropwhile(fun(E) -> E =/= Tag end, Tokens).
