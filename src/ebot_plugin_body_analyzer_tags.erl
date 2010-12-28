@@ -20,7 +20,7 @@
 %%% Author  : matteo <matteo@pirelli.com>
 %%% Description : 
 %%%
-%%% Created :  4 Jun 2010 by matteo <matteo.redaelli@libero.it>
+%%% Created :  28 Dec 2010 by matteo <matteo.redaelli@libero.it>
 %%%-------------------------------------------------------------------
 -module(ebot_plugin_body_analyzer_tags).
 
