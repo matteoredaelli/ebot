@@ -26,7 +26,8 @@
 
 %% API
 -export([
-	 get_links/2
+	 get_links/2,
+	 get_tag_value/2
 	]).
 
 %%====================================================================
@@ -67,6 +68,20 @@ get_links(Html, ParentUrl) ->
 	    ),
     ebot_util:remove_duplicates(List).
 
+%% works for <<"title">>
+get_tag_value(Html, TagName) ->
+    Tag =  {start_tag,TagName,[],false},
+    case find_tag(Html, Tag) of
+	[Tag,  {data, Title, false} | _Tokens] ->
+	    Title;
+	_Else ->
+	    <<"">>
+    end.
+    
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+find_tag(Html, Tag) ->
+    Tokens = mochiweb_html:tokens(Html),
+    lists:dropwhile(fun(E) -> E =/= Tag end, Tokens).

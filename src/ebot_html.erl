@@ -37,6 +37,7 @@
 -export([
 	 analyze_url/2,
 	 analyze_url_body_plugins/2,
+	 analyze_url_body_tags/2,
 	 check_recover_workers/0,
 	 run/1,
 	 info/0,
@@ -238,6 +239,7 @@ analyze_url_body(Url, {_Status, _Headers, empty}) ->
 
 analyze_url_body(Url, {_Status, _Headers, Body}) ->
     spawn(?MODULE, analyze_url_body_plugins, [Url, Body]),
+    spawn(?MODULE, analyze_url_body_tags, [Url, Body]),
     error_logger:info_report({?MODULE, ?LINE, {analyze_body_plugins, Url}}),
     Links = ebot_html_util:get_links(Body, Url),
     analyze_url_body_links(Url, Links),
@@ -306,6 +308,17 @@ analyze_url_body_plugins(Url, Body) ->
 	    ),
     ebot_db:update_url(Url, Options).
 
+analyze_url_body_tags(Url, Body) ->
+    {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags),
+    lists:foreach(
+      fun(Tag) ->
+	      error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tags, Url, Tag}}),
+	      Value = ebot_html_util:get_tag_value(Body, Tag),
+	      Options = [{update_field_key_value, Tag, Value}],
+	      ebot_db:update_url(Url, Options) 
+      end,
+      BodyTags
+     ).
 
 get_env_normalize_url(Url, [{RE,Options}|L]) ->
     case re:run(Url, RE, [{capture, none},caseless]) of
