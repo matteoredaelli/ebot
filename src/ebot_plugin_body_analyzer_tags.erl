@@ -46,10 +46,10 @@ analyze_url_body(Url, Body) ->
     {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags),
     Tokens = mochiweb_html:tokens(Body),
     lists:map(
-      fun(Tag) ->
-	      error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tags, Url, Tag}}),
-	      Value = get_tag_value(Tokens, Tag),
-	      {update_field_key_value, Tag, Value}
+      fun(TagName) ->
+	      error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tags, Url, TagName}}),
+	      {_, Value} = get_tag_value(Tokens, TagName),
+	      {update_field_key_value, TagName, Value}
       end,
       BodyTags
      ).
@@ -97,14 +97,23 @@ analyze_url_body(Url, Body) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_tag_value(Tokens, TagName) ->
-    Tag =  {start_tag,TagName,[],false},
-    case find_tag(Tokens, Tag) of
-	[Tag,  {data, Title, false} | _OtherTokens] ->
-	    Title;
+    case find_start_tag(Tokens, TagName) of
+	[_,  {data, Value, false} | _OtherTokens] ->
+	    {ok, Value};
 	_Else ->
-	    <<"">>
+	    {error, <<"">>}
     end.
 
+find_start_tag(Tokens, TagName) ->
+    lists:dropwhile(fun(E) -> 
+			    case E of
+				{start_tag, TagName, _, _} ->
+				    false;
+				_Else ->
+				    true
+			    end
+		    end, 
+		    Tokens).
 
-find_tag(Tokens, Tag) ->
-    lists:dropwhile(fun(E) -> E =/= Tag end, Tokens).
+%%find_tag(Tokens, Tag) ->
+%%    lists:dropwhile(fun(E) -> E =/= Tag end, Tokens).
