@@ -124,6 +124,7 @@ init([]) ->
 	    };
 	_Else ->
 	    {error, amqp_cannot_connect_or_get_channel}
+	    %% TODO stopping the application or wait 60 sec and run again init
     end.
 
 %%--------------------------------------------------------------------
