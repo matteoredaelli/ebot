@@ -87,15 +87,15 @@ command(_Method, "crawler", [Command|_Tokens], ReqData) ->
 		false ->
 		    Result = "Invalid/Missing parameter url"
 	    end;
-	"analyze_url" ->
-	    Url = wrq:get_qs_value("url",ReqData),
-	    case is_list(Url) of
-		true ->
-		    ebot_web:analyze_url( list_to_binary(Url) ),
-		    Result = "Url Analyzer has started for " ++ Url;
-		false ->
-		    Result = "Invalid/Missing parameter 'url'"
-	    end;
+	%% "analyze_url" ->
+	%%     Url = wrq:get_qs_value("url",ReqData),
+	%%     case is_list(Url) of
+	%% 	true ->
+	%% 	    ebot_web:analyze_url( list_to_binary(Url) ),
+	%% 	    Result = "Url Analyzer has started for " ++ Url;
+	%% 	false ->
+	%% 	    Result = "Invalid/Missing parameter 'url'"
+	%%     end;
    	"start" ->
     	    ebot_crawler:start_workers(),
 	    Result = "Crawler Started!";

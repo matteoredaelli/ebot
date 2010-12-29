@@ -134,7 +134,7 @@ init([]) ->
 	    {ok, Pid} = riakc_pb_socket:start_link(Hostname, Port),
 	    State = #state{db=Pid},
 	    {ok, State};
-	else ->
+	_Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
 	    {error, unsupported_backend}
     end.
