@@ -98,21 +98,19 @@ update_url(Db, Url, Options) ->
   
 update_url_doc(Doc, [{referral, RefUrl}|Options]) ->
     %% TODO 
-    %% managing more than one referral: we need also a job that
+    %% we need also a job that
     %% periodically checks referrals...
     ReferralsCount = doc_get_value(<<"ebot_referrals_count">>, Doc),
     OldReferralsString = doc_get_value(<<"ebot_referrals">>, Doc),
   
     OldReferrals = re:split(OldReferralsString, " "),
-    case lists:member( RefUrl, OldReferrals) of
+    case lists:member(RefUrl, OldReferrals) of
 	true ->
-    	    NewReferrals = OldReferrals;
+    	    NewReferralsString = OldReferralsString;
 	false ->
-	    NewReferrals = [RefUrl|OldReferrals]
+	    NewReferralsString = ebot_util:bjoin([RefUrl,OldReferralsString])
     end,
-    NewReferralsList = lists:map(fun binary_to_list/1, NewReferrals),
-    NewReferralsString = string:join(NewReferralsList, " "),
-    NewDoc = update_doc_by_key_value(Doc, <<"ebot_referrals">>, list_to_binary(NewReferralsString)),
+    NewDoc = update_doc_by_key_value(Doc, <<"ebot_referrals">>, NewReferralsString),
     NewDoc2 = update_doc_by_key_value(NewDoc, <<"ebot_referrals_count">>, ReferralsCount + 1),
     update_url_doc(NewDoc2, Options);
 update_url_doc(Doc, [{update_field_counter, Key}|Options]) ->
