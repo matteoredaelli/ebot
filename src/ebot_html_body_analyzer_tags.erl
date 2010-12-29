@@ -25,7 +25,7 @@
 -module(ebot_html_body_analyzer_tags).
 
 %% API
--export([analyze_url_body/2]).
+-export([add_tags_data/2]).
 
 %%====================================================================
 %% API
@@ -42,15 +42,16 @@
 %%	  ]},
 %%--------------------------------------------------------------------
 
-analyze_url_body(Url, Body) ->
-    {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags),
+add_tags_data(Url, Body) ->
+    {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags_data),
     Tokens = mochiweb_html:tokens(Body),
-    lists:map(
-      fun(TagName) ->
-	      analyze_url_body_tag(Url, Tokens, TagName)
-      end,
-      BodyTags
-     ).
+    DeepList = lists:map(
+		 fun(TagName) ->
+			 analyze_url_body_tag(Url, Tokens, TagName)
+		 end,
+		 BodyTags
+		),
+    lists:flatten(DeepList).
 
 %%====================================================================
 %% Internal functions
@@ -64,8 +65,13 @@ analyze_url_body_tag(Url, _Tokens, TagName) ->
 
 analyze_url_body_tag_data(Url, Tokens, TagName) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tag_data, Url, TagName}}),
-    [Value|_] = ebot_html_util:get_start_tags_data(Tokens, TagName),
-    {update_field_key_value, TagName, Value}.
+    case List = ebot_html_util:get_start_tags_data(Tokens, TagName) of
+	[] -> 
+	    Values = <<"nodata">>;
+	List ->
+	     Values = ebot_util:bjoin(List)
+    end,	
+    [{update_field_key_value, TagName, Values}].
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

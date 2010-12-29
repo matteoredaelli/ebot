@@ -28,6 +28,7 @@
 
 %% API
 -export([ 
+	  bjoin/1,
 	  create_filled_dict/2,
 	  create_filled_queue/2,
 	  get_env/1,
@@ -45,6 +46,10 @@
 %%====================================================================
 %% EBOT specific functions
 %%====================================================================
+
+bjoin(List) ->
+    F = fun(A, B) -> <<A/binary," ",B/binary>> end,
+    lists:foldr(F, <<>>, List).
 
 create_filled_dict(Value, Keys) ->
     lists:foldl(

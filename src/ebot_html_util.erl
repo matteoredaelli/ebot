@@ -27,6 +27,8 @@
 %% API
 -export([
 	 get_links/2,
+	 get_images/2,
+	 get_start_tags_attributes/3,
 	 get_start_tags_data/2
 	]).
 
@@ -38,10 +40,33 @@
 %% Description:
 %%--------------------------------------------------------------------
 
+get_images(Html, ParentUrl) when is_binary(ParentUrl) ->
+    Images = get_images(Html, binary_to_list(ParentUrl)),
+    lists:map( fun list_to_binary/1, Images);
+get_images(Html, ParentUrl) ->
+    Tokens = mochiweb_html:tokens(Html),
+    Urls = get_start_tags_attributes(Tokens, <<"img">>, <<"src">>),
+    List = lists:foldl(
+	     fun(Url, Links) -> 
+		     case ebot_url_util:is_valid_image(Url) of
+			 true ->
+			     AbsoluteUrl = ebot_url_util:convert_to_absolute_url( 
+					     binary_to_list(Url), 
+					     ParentUrl
+					    ),
+			     [AbsoluteUrl|Links];
+			 false ->
+			     Links
+		     end
+	     end,
+	     [], 
+	     Urls
+	    ),
+    ebot_util:remove_duplicates(List).
+
 get_links(Html, ParentUrl) when is_binary(ParentUrl) ->
     Links = get_links(Html, binary_to_list(ParentUrl)),
     lists:map( fun list_to_binary/1, Links);
-
 get_links(Html, ParentUrl) ->
     Tokens = mochiweb_html:tokens(Html),
     Urls = get_start_tags_attributes(Tokens, <<"a">>, <<"href">>),
@@ -128,15 +153,59 @@ get_start_tags_attributes(Tokens, TagName, Attribute) ->
 
 get_start_tags_data(Tokens, TagName) ->
     Indexes = get_start_tags_indexes(Tokens, TagName),
-    lists:foldl(
-      fun(Index, Results) ->
-	      case lists:nth(Index + 1, Tokens) of
-		  {data, Data, _Whitespace} ->
-		      [Data|Results];
-		  _Else ->
-		      error_logger:warning_report({?MODULE, ?LINE, {get_start_tags_data, data_token_notFound}}),
-		      Results
-	      end
-      end,
-      [],
-      Indexes).
+    DeepList = lists:foldl(
+		 fun(Index, Results) ->
+			 case lists:nth(Index + 1, Tokens) of
+			     {data, Data, _Whitespace} ->
+				 [Data|Results];
+			     _Else ->
+				 error_logger:warning_report({?MODULE, ?LINE, {get_start_tags_data, data_token_notFound}}),
+				 Results
+			 end
+		 end,
+		 [],
+		 Indexes),
+    lists:flatten(DeepList).
+
+
+%%====================================================================
+%% EUNIT TESTS
+%%====================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+-ifdef(TEST).
+
+ebot_html_util_test() ->
+    Url = <<"http://www.redaelli.org/">>,
+    Html = <<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\"> 
+<html xmlns=\"http://www.w3.org/1999/xhtml\"> 
+<head> 
+<title>Fratelli Redaelli</title>
+<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" /> 
+<title>Redaelli.Org</title> 
+<meta name=\"keywords\" content=\"redaelli,carate brianza,opensource,linux,italy\" /> 
+<meta name=\"description\" content=\"Website dei Fratelli Redaelli\" /> 
+<link href=\"templatemo_style.css\" rel=\"stylesheet\" type=\"text/css\" /> 
+<meta name=\"google-site-verification\" content=\"SdYRvDUubCbqDXBUbur7qnC1Gh9cmVC3GUisrpqGBT0\" /> 
+</head> 
+<body> 
+<img src=\"images/fratelli-redaelli.jpg\" /> 
+<img class=\"image\" src=\"http://upload.wikimedia.org/test.JPG\" width=\"120\" alt=\"Icon\" /> 
+                    <ul class=\"templatemo_list bullet_arrow\"> 
+                    	<li><a href=\"http://www.alpinicarate.it\">Alpini Carate</a></li> 
+						<li><a href=\"matteo/\">Matteo</a></li> 
+						<li><a href=\"http://www.vvfcarate.it/\">Vigili del Fuoco</a></li> 
+                    </ul> 
+</body> 
+</html>">>,
+
+    ?assertEqual( [<<"http://www.alpinicarate.it">>,
+		   <<"http://www.redaelli.org/matteo">>,
+		   <<"http://www.vvfcarate.it/">>],
+		   ebot_html_util:get_links(Html, Url)),
+
+    ?assertEqual( [<<"http://upload.wikimedia.org/test.JPG">>,
+		   <<"http://www.redaelli.org/images/fratelli-redaelli.jpg">>],
+		  ebot_html_util:get_images(Html, Url)).
+-endif.
