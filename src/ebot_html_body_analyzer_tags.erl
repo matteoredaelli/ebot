@@ -91,20 +91,3 @@ analyze_url_body_tag_data(Url, Tokens, TagName) ->
 %%             {<<"content">>,<<"redaelli,carate brianza,opensource,l"...>>}],\
 %%            true},
 %% {data,<<"\n">>,true},
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% IMG
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% {start_tag,<<"img">>,
-%%            [{<<"src">>,<<"images/matteo.jpg">>}],
-%%            true},
-%% {start_tag,<<"img">>,
-%%            [{<<"class">>,<<"image">>},
-%%             {<<"src">>,
-%%              <<"http://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Carate_bria"...>>},
-%%             {<<"width">>,<<"120">>},
-%%             {<<"alt">>,<<"Icon">>}],
-%%            true}]
-

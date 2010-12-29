@@ -40,6 +40,20 @@
 %% Description:
 %%--------------------------------------------------------------------
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% IMG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% {start_tag,<<"img">>,
+%%            [{<<"src">>,<<"images/matteo.jpg">>}],
+%%            true},
+%% {start_tag,<<"img">>,
+%%            [{<<"class">>,<<"image">>},
+%%             {<<"src">>,
+%%              <<"http://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Carate_bria"...>>},
+%%             {<<"width">>,<<"120">>},
+%%             {<<"alt">>,<<"Icon">>}],
+%%            true}]
+
 get_images(Html, ParentUrl) when is_binary(ParentUrl) ->
     Images = get_images(Html, binary_to_list(ParentUrl)),
     lists:map( fun list_to_binary/1, Images);
