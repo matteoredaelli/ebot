@@ -16,13 +16,13 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %%
 %%%-------------------------------------------------------------------
-%%% File    : ebot_plugin_body_analyzer_sample.erl
+%%% File    : ebot_html_body_analyzer_sample.erl
 %%% Author  : matteo <matteo@pirelli.com>
 %%% Description : 
 %%%
 %%% Created :  4 Jun 2010 by matteo <matteo.redaelli@libero.it>
 %%%-------------------------------------------------------------------
--module(ebot_plugin_body_analyzer_sample).
+-module(ebot_html_body_analyzer_sample).
 
 %% API
 -export([analyze_url_body/2]).

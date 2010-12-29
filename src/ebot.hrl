@@ -34,8 +34,8 @@
 
 -define(EBOT_BODY_ANALYZER_PLUGINS, [
 				     %% for saving TITLE, ...
-				     {ebot_plugin_body_analyzer_tags,analyze_url_body}
-				     ,{ebot_plugin_body_analyzer_sample,analyze_url_body}
+				     {ebot_html_body_analyzer_tags,analyze_url_body}
+				     ,{ebot_html_body_analyzer_sample,analyze_url_body}
 				    ]).
 
 %% -----------------------------------------------------------------------

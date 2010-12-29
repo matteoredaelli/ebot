@@ -16,13 +16,13 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %%
 %%%-------------------------------------------------------------------
-%%% File    : ebot_plugin_body_analyzer_tags.erl
+%%% File    : ebot_html_body_analyzer_tags.erl
 %%% Author  : matteo <matteo@pirelli.com>
 %%% Description : 
 %%%
 %%% Created :  28 Dec 2010 by matteo <matteo.redaelli@libero.it>
 %%%-------------------------------------------------------------------
--module(ebot_plugin_body_analyzer_tags).
+-module(ebot_html_body_analyzer_tags).
 
 %% API
 -export([analyze_url_body/2]).
@@ -47,9 +47,7 @@ analyze_url_body(Url, Body) ->
     Tokens = mochiweb_html:tokens(Body),
     lists:map(
       fun(TagName) ->
-	      error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tags, Url, TagName}}),
-	      {_, Value} = get_tag_value(Tokens, TagName),
-	      {update_field_key_value, TagName, Value}
+	      analyze_url_body_tag(Url, Tokens, TagName)
       end,
       BodyTags
      ).
@@ -57,6 +55,18 @@ analyze_url_body(Url, Body) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+
+analyze_url_body_tag(Url, Tokens, <<"title">>) ->
+    analyze_url_body_tag_data(Url, Tokens, <<"title">>);	    
+analyze_url_body_tag(Url, _Tokens, TagName) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tag, Url, {unexpected_tag, TagName}}}).
+
+analyze_url_body_tag_data(Url, Tokens, TagName) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tag_data, Url, TagName}}),
+    [Value|_] = ebot_html_util:get_start_tags_data(Tokens, TagName),
+    {update_field_key_value, TagName, Value}.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% DESCRITION
@@ -92,28 +102,3 @@ analyze_url_body(Url, Body) ->
 %%             {<<"alt">>,<<"Icon">>}],
 %%            true}]
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% TITLE (<<"title">>)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-get_tag_value(Tokens, TagName) ->
-    case find_start_tag(Tokens, TagName) of
-	[_,  {data, Value, false} | _OtherTokens] ->
-	    {ok, Value};
-	_Else ->
-	    {error, <<"">>}
-    end.
-
-find_start_tag(Tokens, TagName) ->
-    lists:dropwhile(fun(E) -> 
-			    case E of
-				{start_tag, TagName, _, _} ->
-				    false;
-				_Else ->
-				    true
-			    end
-		    end, 
-		    Tokens).
-
-%%find_tag(Tokens, Tag) ->
-%%    lists:dropwhile(fun(E) -> E =/= Tag end, Tokens).

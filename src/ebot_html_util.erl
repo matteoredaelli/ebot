@@ -26,7 +26,8 @@
 
 %% API
 -export([
-	 get_links/2
+	 get_links/2,
+	 get_start_tags_data/2
 	]).
 
 %%====================================================================
@@ -43,27 +44,22 @@ get_links(Html, ParentUrl) when is_binary(ParentUrl) ->
 
 get_links(Html, ParentUrl) ->
     Tokens = mochiweb_html:tokens(Html),
-
+    Urls = get_start_tags_attributes(Tokens, <<"a">>, <<"href">>),
     List = lists:foldl(
-	     fun(Token, Links) -> 
-		     case Token of 
-			 {start_tag,<<"a">>,[{<<"href">>,Url}],false} ->
-			     case ebot_url_util:is_valid_link(Url) of
-				 true ->
-				     AbsoluteUrl = ebot_url_util:convert_to_absolute_url( 
-						     binary_to_list(Url), 
-						     ParentUrl
-						    ),
-				     [AbsoluteUrl|Links];
-				 false ->
-				     Links
-			     end;
-			 _Else ->
+	     fun(Url, Links) -> 
+		     case ebot_url_util:is_valid_link(Url) of
+			 true ->
+			     AbsoluteUrl = ebot_url_util:convert_to_absolute_url( 
+					     binary_to_list(Url), 
+					     ParentUrl
+					    ),
+			     [AbsoluteUrl|Links];
+			 false ->
 			     Links
 		     end
 	     end,
 	     [], 
-	     Tokens
+	     Urls
 	    ),
     ebot_util:remove_duplicates(List).
     
@@ -71,3 +67,76 @@ get_links(Html, ParentUrl) ->
 %% Internal functions
 %%====================================================================
 
+%% [{<<"href">>, url1},{<<"img">>, file}]
+%% there should be only one attribute with that name, but 
+%% to be suse, will be returned a list
+ 
+get_attribute_value_list(Attributes, Attribute) ->
+    lists:foldl(
+      fun(Elem, Results) -> 
+	      case Elem of 
+		  {Attribute, Value} ->
+		      [Value|Results];
+		  _Else ->
+		      Results
+	      end
+      end,
+      [], 
+      Attributes
+     ).
+
+get_start_tags_indexes(Tokens, TagName) ->
+    lists:foldl(
+      fun(Index, Results) -> 
+	      Token = lists:nth(Index, Tokens),
+	      case Token of 
+		  {start_tag,TagName,_,_} ->
+		      [Index|Results];
+		  _Else ->
+		      Results
+	      end
+      end,
+      [], 
+      lists:seq(1, length(Tokens))
+     ).
+
+get_start_tags_attributes(Tokens, TagName) ->
+    Indexes = get_start_tags_indexes(Tokens, TagName),
+    lists:map(
+      fun(Index) ->
+	      {start_tag, TagName, Values, _} = lists:nth(Index, Tokens),
+	      Values
+      end,
+      Indexes).
+
+get_start_tags_attributes(Tokens, TagName, Attribute) ->
+    AllTagsAttributes = get_start_tags_attributes(Tokens, TagName), 
+    DeepList = lists:foldl(
+		 fun(TagAttributes, Results) ->
+	      NewValues =  get_attribute_value_list(TagAttributes, Attribute),
+			 case NewValues of 
+			     [] ->
+				 Results;
+			     _Else ->
+				 [NewValues|Results]
+			 end
+		 end,
+		 [], 
+		 AllTagsAttributes
+		),
+    lists:flatten(DeepList).
+
+get_start_tags_data(Tokens, TagName) ->
+    Indexes = get_start_tags_indexes(Tokens, TagName),
+    lists:foldl(
+      fun(Index, Results) ->
+	      case lists:nth(Index + 1, Tokens) of
+		  {data, Data, _Whitespace} ->
+		      [Data|Results];
+		  _Else ->
+		      error_logger:warning_report({?MODULE, ?LINE, {get_start_tags_data, data_token_notFound}}),
+		      Results
+	      end
+      end,
+      [],
+      Indexes).
