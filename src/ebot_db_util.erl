@@ -190,7 +190,7 @@ doc_get_value(Key, Doc) ->
     end.
 
 doc_set_value(Key, Value, Doc) ->
-    error_logger:info_report({?MODULE, ?LINE, {doc_set_value, Key, Value, Doc}}),
+    %%error_logger:info_report({?MODULE, ?LINE, {doc_set_value, Key, Value, Doc}}),
     dict:store(Key, Value, Doc).
 
 %% removing_db_stardard_keys(Keys) ->

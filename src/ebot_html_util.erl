@@ -28,6 +28,7 @@
 -export([
 	 get_links/2,
 	 get_images/2,
+	 get_start_tags_attributes/2,
 	 get_start_tags_attributes/3,
 	 get_start_tags_data/2
 	]).
@@ -59,7 +60,7 @@ get_images(Html, ParentUrl) when is_binary(ParentUrl) ->
     lists:map( fun list_to_binary/1, Images);
 get_images(Html, ParentUrl) ->
     Tokens = mochiweb_html:tokens(Html),
-    Urls = get_start_tags_attributes(Tokens, <<"img">>, <<"src">>),
+    Urls = lists:flatten(get_start_tags_attributes(Tokens, <<"img">>, <<"src">>)),
     List = lists:foldl(
 	     fun(Url, Links) -> 
 		     case ebot_url_util:is_valid_image(Url) of
@@ -83,7 +84,7 @@ get_links(Html, ParentUrl) when is_binary(ParentUrl) ->
     lists:map( fun list_to_binary/1, Links);
 get_links(Html, ParentUrl) ->
     Tokens = mochiweb_html:tokens(Html),
-    Urls = get_start_tags_attributes(Tokens, <<"a">>, <<"href">>),
+    Urls = lists:flatten(get_start_tags_attributes(Tokens, <<"a">>, <<"href">>)),
     List = lists:foldl(
 	     fun(Url, Links) -> 
 		     case ebot_url_util:is_valid_link(Url) of
@@ -152,7 +153,7 @@ get_start_tags_attributes(Tokens, TagName, Attribute) ->
     AllTagsAttributes = get_start_tags_attributes(Tokens, TagName), 
     DeepList = lists:foldl(
 		 fun(TagAttributes, Results) ->
-	      NewValues =  get_attribute_value_list(TagAttributes, Attribute),
+			 NewValues =  get_attribute_value_list(TagAttributes, Attribute),
 			 case NewValues of 
 			     [] ->
 				 Results;
@@ -213,6 +214,7 @@ ebot_html_util_test() ->
                     </ul> 
 </body> 
 </html>">>,
+    Tokens = mochiweb_html:tokens(Html),
 
     ?assertEqual( [<<"http://www.alpinicarate.it">>,
 		   <<"http://www.redaelli.org/matteo">>,
@@ -221,5 +223,21 @@ ebot_html_util_test() ->
 
     ?assertEqual( [<<"http://upload.wikimedia.org/test.JPG">>,
 		   <<"http://www.redaelli.org/images/fratelli-redaelli.jpg">>],
-		  ebot_html_util:get_images(Html, Url)).
+		  ebot_html_util:get_images(Html, Url)),
+
+    ?assertEqual( [[{<<"name">>,<<"google-site-verification">>},
+		    {<<"content">>,
+		     <<"SdYRvDUubCbqDXBUbur7qnC1Gh9cmVC3GUisrpqGBT0">>}],
+		   [{<<"name">>,<<"description">>},
+		    {<<"content">>,
+		     <<"Website dei Fratelli Redaelli">>}],
+		   [{<<"name">>,<<"keywords">>},
+		    {<<"content">>,
+		     <<"redaelli,carate brianza,opensource,linux,italy">>}],
+		   [{<<"http-equiv">>,<<"Content-Type">>},
+		    {<<"content">>,
+		     <<"text/html; charset=utf-8">>}]
+		  ],
+    		  ebot_html_util:get_start_tags_attributes(Tokens, <<"meta">>)).
+
 -endif.

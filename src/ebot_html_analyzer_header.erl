@@ -30,28 +30,12 @@
 %%====================================================================
 %% API
 %%====================================================================
-%%--------------------------------------------------------------------
-%% Function: analyze_url_bod
-%% Description: All values of tags found in the option "tobe_saved_body_tags" 
-%% of file sys.config will be saved to db
-%%
-%% supported tags are: title
-%%      {tobe_saved_body_tags, 
-%%	  [
-%%	   <<"title">>
-%%	  ]},
-%%--------------------------------------------------------------------
 
 add_header_tags(Url, Body) ->
-    {ok, BodyTags} = ebot_util:get_env(tobe_saved_html_tags_data),
     Tokens = mochiweb_html:tokens(Body),
-    DeepList = lists:map(
-		 fun(TagName) ->
-			 analyze_html_tag(Url, Tokens, TagName)
-		 end,
-		 BodyTags
-		),
-    lists:flatten(DeepList).
+    L1 = analyze_html_tag(Url, Tokens, <<"title">>),
+    L2 = analyze_html_tag(Url, Tokens, <<"meta">>),
+    lists:flatten( [L1, L2]).
 
 %%====================================================================
 %% Internal functions
@@ -59,7 +43,9 @@ add_header_tags(Url, Body) ->
 
 
 analyze_html_tag(Url, Tokens, <<"title">>) ->
-    analyze_html_tag_data(Url, Tokens, <<"title">>);	    
+    analyze_html_tag_data(Url, Tokens, <<"title">>);	  
+analyze_html_tag(Url, Tokens, <<"meta">>) ->
+    analyze_html_meta_attributes(Url, Tokens);
 analyze_html_tag(Url, _Tokens, TagName) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_html_tag, Url, {unexpected_tag, TagName}}}).
 
@@ -73,6 +59,26 @@ analyze_html_tag_data(Url, Tokens, TagName) ->
     end,	
     [{update_field_key_value, TagName, Values}].
 
+analyze_html_meta_attributes(Url, Tokens) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_html_tag_attributes, Url}}),
+    Attributes = ebot_html_util:get_start_tags_attributes(Tokens, <<"meta">>),    
+    analyze_meta_attributes(Url, Attributes).
+
+analyze_meta_attributes(_Url, []) ->
+    [{update_field_key_value, <<"keywords">>, <<>>},{update_field_key_value, <<"description">>, <<>>}];
+analyze_meta_attributes(_Url, Attributes) ->
+    lists:foldl(
+      fun(Attribute, Results) ->
+	      [analyze_meta_attribute(url, Attribute)|Results]
+      end,
+      [],
+      Attributes).
+
+analyze_meta_attribute(_Url, [{<<"name">>,Name},{<<"content">>,Content}]) ->
+    {update_field_key_value, Name, Content};
+analyze_meta_attribute(Url, List) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_meta_attribute, Url, unexpected_list, List}}),
+    {update_field_key_value, <<"headermeta">>, <<"invalid_meta-attribute">>}. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% DESCRITION
@@ -91,3 +97,40 @@ analyze_html_tag_data(Url, Tokens, TagName) ->
 %%             {<<"content">>,<<"redaelli,carate brianza,opensource,l"...>>}],\
 %%            true},
 %% {data,<<"\n">>,true},
+
+
+
+%%====================================================================
+%% EUNIT TESTS
+%%====================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+-ifdef(TEST).
+
+ebot_html_analyzer_header_test() ->
+    Url = <<"http://www.redaelli.org/">>,
+    MetaAttributes = [[{<<"name">>,<<"google-site-verification">>},
+		       {<<"content">>,
+			<<"SdYRvDUubCbqDXBUbur7qnC1Gh9cmVC3GUisrpqGBT0">>}],
+		      [{<<"name">>,<<"description">>},
+		       {<<"content">>,
+			<<"Website dei Fratelli Redaelli">>}],
+		      [{<<"name">>,<<"keywords">>},
+		       {<<"content">>,
+			<<"redaelli,carate brianza,opensource,linux,italy">>}],
+		      [{<<"http-equiv">>,<<"Content-Type">>},
+		       {<<"content">>,
+			<<"text/html; charset=utf-8">>}]
+		     ],
+    ?assertEqual([{update_field_key_value,<<"headermeta">>,
+		   <<"invalid_meta-attribute">>},
+		  {update_field_key_value,<<"keywords">>,
+		   <<"redaelli,carate brianza,opensource,linux,italy">>},
+		  {update_field_key_value,<<"description">>,
+		   <<"Website dei Fratelli Redaelli">>},
+		  {update_field_key_value,
+		   <<"google-site-verification">>,
+		   <<"SdYRvDUubCbqDXBUbur7qnC1Gh9cmVC3GUisrpqGBT0">>}],
+		 analyze_meta_attributes(Url, MetaAttributes)).
+-endif.

@@ -24,13 +24,8 @@
 %%%-------------------------------------------------------------------
 -module(ebot_test).
 
--export([
-	 test/0,
-	 test1/0,
-	 test1_tyre/0,
-	 test2/0,
-	 test_oss/0
-	]).
+-compile(export_all).
+
 
 test() ->
     Mods = [ebot_url_util, ebot_mq, ebot_db, ebot_web, ebot_web_util, ebot_worker_util],
@@ -38,19 +33,19 @@ test() ->
       fun(M) -> M:test() end,
       Mods).
 
-test1() ->
+gitorious() ->
     Urls = [ <<"http://www.gitorious.org/">> ],
     test_workers_with_urls(Urls).
 
-test2() ->
+google() ->
     Urls = [ <<"http://code.google.com/">> ],
     test_workers_with_urls(Urls).
 
-test1_tyre() ->
+tyre() ->
     Urls = [ <<"http://www.tyres-pneus-online.co.uk/">> ],
     test_workers_with_urls(Urls).
 
-test_oss() ->
+oss() ->
     Urls = [
      <<"http://github.com/">>, 
      <<"http://www.apache.org/">>,
