@@ -25,7 +25,7 @@
 -module(ebot_html_analyzer_header).
 
 %% API
--export([add_tags_data/2]).
+-export([add_header_tags/2]).
 
 %%====================================================================
 %% API
@@ -42,12 +42,12 @@
 %%	  ]},
 %%--------------------------------------------------------------------
 
-add_tags_data(Url, Body) ->
-    {ok, BodyTags} = ebot_util:get_env(tobe_saved_body_tags_data),
+add_header_tags(Url, Body) ->
+    {ok, BodyTags} = ebot_util:get_env(tobe_saved_html_tags_data),
     Tokens = mochiweb_html:tokens(Body),
     DeepList = lists:map(
 		 fun(TagName) ->
-			 analyze_url_body_tag(Url, Tokens, TagName)
+			 analyze_html_tag(Url, Tokens, TagName)
 		 end,
 		 BodyTags
 		),
@@ -58,13 +58,13 @@ add_tags_data(Url, Body) ->
 %%====================================================================
 
 
-analyze_url_body_tag(Url, Tokens, <<"title">>) ->
-    analyze_url_body_tag_data(Url, Tokens, <<"title">>);	    
-analyze_url_body_tag(Url, _Tokens, TagName) ->
-    error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tag, Url, {unexpected_tag, TagName}}}).
+analyze_html_tag(Url, Tokens, <<"title">>) ->
+    analyze_html_tag_data(Url, Tokens, <<"title">>);	    
+analyze_html_tag(Url, _Tokens, TagName) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_html_tag, Url, {unexpected_tag, TagName}}}).
 
-analyze_url_body_tag_data(Url, Tokens, TagName) ->
-    error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_tag_data, Url, TagName}}),
+analyze_html_tag_data(Url, Tokens, TagName) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_html_tag_data, Url, TagName}}),
     case List = ebot_html_util:get_start_tags_data(Tokens, TagName) of
 	[] -> 
 	    Values = <<"nodata">>;
