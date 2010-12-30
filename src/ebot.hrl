@@ -35,8 +35,8 @@
 -define(EBOT_BODY_ANALYZER_PLUGINS, [
 				     %% for saving TITLE, ...
 				     {ebot_html_body_analyzer_tags,add_tags_data},
-				     {ebot_html_body_analyzer_images, add_images_list}
-				     %,{ebot_html_body_analyzer_sample,analyze_url_body}
+				     {ebot_html_analyzer_images, add_images_list}
+				     %,{ebot_html_analyzer_sample,analyze_url_body}
 				    ]).
 
 %% -----------------------------------------------------------------------

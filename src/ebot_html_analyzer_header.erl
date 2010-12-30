@@ -16,13 +16,13 @@
 %% along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %%
 %%%-------------------------------------------------------------------
-%%% File    : ebot_html_body_analyzer_tags.erl
+%%% File    : ebot_html_analyzer_header.erl
 %%% Author  : matteo <matteo@pirelli.com>
 %%% Description : 
 %%%
 %%% Created :  28 Dec 2010 by matteo <matteo.redaelli@libero.it>
 %%%-------------------------------------------------------------------
--module(ebot_html_body_analyzer_tags).
+-module(ebot_html_analyzer_header).
 
 %% API
 -export([add_tags_data/2]).
