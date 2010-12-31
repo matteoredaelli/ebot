@@ -33,8 +33,8 @@
 %%--------------------------------------------------------------------
 %%--------------------------------------------------------------------
 
-add_images_list(Url, Body) ->
-    List = ebot_html_util:get_images(Body, Url),
+add_images_list(Url, Tokens) ->
+    List = ebot_html_util:get_images(Tokens, Url),
     %% Save Image urls to db and add them to the queue of urls to be visited
     %% lists:foreach(fun ebot_db:open_or_create_url/1, List), 
     %% lists:foreach(fun ebot_crawler:add_url/1, List), 

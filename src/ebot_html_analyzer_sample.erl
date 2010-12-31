@@ -35,7 +35,7 @@
 %% Description:
 %%--------------------------------------------------------------------
 
-analyze_url_body(_Url, _Body) ->
+analyze_url_body(_Url, _Tokens) ->
     %% add here you logic
     %% 
     [

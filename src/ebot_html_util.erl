@@ -55,11 +55,10 @@
 %%             {<<"alt">>,<<"Icon">>}],
 %%            true}]
 
-get_images(Html, ParentUrl) when is_binary(ParentUrl) ->
-    Images = get_images(Html, binary_to_list(ParentUrl)),
+get_images(Tokens, ParentUrl) when is_binary(ParentUrl) ->
+    Images = get_images(Tokens, binary_to_list(ParentUrl)),
     lists:map( fun list_to_binary/1, Images);
-get_images(Html, ParentUrl) ->
-    Tokens = mochiweb_html:tokens(Html),
+get_images(Tokens, ParentUrl) ->
     Urls = lists:flatten(get_start_tags_attributes(Tokens, <<"img">>, <<"src">>)),
     List = lists:foldl(
 	     fun(Url, Links) -> 
@@ -79,11 +78,10 @@ get_images(Html, ParentUrl) ->
 	    ),
     ebot_util:remove_duplicates(List).
 
-get_links(Html, ParentUrl) when is_binary(ParentUrl) ->
-    Links = get_links(Html, binary_to_list(ParentUrl)),
+get_links(Tokens, ParentUrl) when is_binary(ParentUrl) ->
+    Links = get_links(Tokens, binary_to_list(ParentUrl)),
     lists:map( fun list_to_binary/1, Links);
-get_links(Html, ParentUrl) ->
-    Tokens = mochiweb_html:tokens(Html),
+get_links(Tokens, ParentUrl) ->
     Urls = lists:flatten(get_start_tags_attributes(Tokens, <<"a">>, <<"href">>)),
     List = lists:foldl(
 	     fun(Url, Links) -> 

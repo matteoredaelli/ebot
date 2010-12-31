@@ -237,9 +237,10 @@ analyze_url_body(Url, {_Status, _Headers, empty}) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_url_body, Url, empty_body}});
 
 analyze_url_body(Url, {_Status, _Headers, Body}) ->
-    spawn(?MODULE, analyze_url_body_plugins, [Url, Body]),
+    Tokens = mochiweb_html:tokens(Body),
+    spawn(?MODULE, analyze_url_body_plugins, [Url, Tokens]),
     error_logger:info_report({?MODULE, ?LINE, {analyze_body_plugins, Url}}),
-    Links = ebot_html_util:get_links(Body, Url),
+    Links = ebot_html_util:get_links(Tokens, Url),
     analyze_url_body_links(Url, Links),
     ebot_mq:send_url_processed({Url, empty}).
 
@@ -296,14 +297,18 @@ analyze_url_body_links(Url, Links) ->
     ebot_db:update_url(Url, Options),
     ok.
 
-analyze_url_body_plugins(Url, Body) ->
-    Options = lists:foldl(
-	     fun({Module, Function}, OptList) ->
-		     error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_plugins, Url, Module, Function}}),
-		     lists:append(Module:Function(Url, Body), OptList) end,
-	     [],
+analyze_url_body_plugins(Url, Tokens) ->
+    error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_plugins, Url}}),
+    lists:foreach(
+	     fun({Module, Function}) ->
+		     analyze_url_body_plugin(Url, Tokens, Module, Function)
+	     end,
 	     ?EBOT_BODY_ANALYZER_PLUGINS
-	    ),
+     ).
+
+analyze_url_body_plugin(Url, Tokens, Module, Function) ->  
+    Options = Module:Function(Url, Tokens),
+    error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_plugin, Url, Module, Function, Options}}),
     ebot_db:update_url(Url, Options).
 
 get_env_normalize_url(Url, [{RE,Options}|L]) ->

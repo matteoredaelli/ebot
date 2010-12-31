@@ -31,8 +31,7 @@
 %% API
 %%====================================================================
 
-add_header_tags(Url, Body) ->
-    Tokens = mochiweb_html:tokens(Body),
+add_header_tags(Url, Tokens) ->
     L1 = analyze_html_tag(Url, Tokens, <<"title">>),
     L2 = analyze_html_tag(Url, Tokens, <<"meta">>),
     lists:flatten( [L1, L2]).
