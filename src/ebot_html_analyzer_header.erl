@@ -73,7 +73,8 @@ analyze_meta_attributes(_Url, Attributes) ->
       [],
       Attributes).
 
-analyze_meta_attribute(_Url, [{<<"name">>,Name},{<<"content">>,Content}]) ->
+analyze_meta_attribute(_Url, [{_Name,Name},{<<"content">>,Content}]) ->
+    %% TODO: Name should be normalized (riak maybe doesn't like some characters like -, upcase chars,.. ok for couchdb)
     {update_field_key_value, Name, Content};
 analyze_meta_attribute(Url, List) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_meta_attribute, Url, unexpected_list, List}}),
