@@ -127,13 +127,24 @@ init([]) ->
 	    Prefix = "",
 	    Options = [],
 	    Conn = couchbeam:server_connection(Hostname, Port, Prefix, Options),
-	    {ok, Ebotdb} = couchbeam:open_or_create_db(Conn, "ebot", []),
-	    State = #state{db=Ebotdb},
-	    {ok, State};
+	    case couchbeam:server_info(Conn) of
+		{ok, _Version} ->
+		    {ok, Ebotdb} = couchbeam:open_or_create_db(Conn, "ebot", []),
+		    State = #state{db=Ebotdb},
+		    {ok, State};
+		Else ->
+		    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, ?EBOT_DB_BACKEND, Else}}),
+		    Else
+	    end;
 	ebot_db_backend_riak_pb ->
-	    {ok, Pid} = riakc_pb_socket:start_link(Hostname, Port),
-	    State = #state{db=Pid},
-	    {ok, State};
+	    case riakc_pb_socket:start_link(Hostname, Port) of
+		{ok, Pid} ->
+		    State = #state{db=Pid},
+		    {ok, State};
+		Else ->
+		    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, ?EBOT_DB_BACKEND, Else}}),
+		    Else
+	    end;
 	_Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
 	    {error, unsupported_backend}
