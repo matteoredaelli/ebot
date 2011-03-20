@@ -118,36 +118,13 @@ url_status(Url, Days) ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, Hostname} = ebot_util:get_env(db_hostname),
-    {ok, Port} = ebot_util:get_env(db_port),
-    case ?EBOT_DB_BACKEND of
-	ebot_db_backend_couchdb ->
-	    application:start(ibrowse),
-	    application:start(couchbeam),
-	    Prefix = "",
-	    Options = [],
-	    Conn = couchbeam:server_connection(Hostname, Port, Prefix, Options),
-	    case couchbeam:server_info(Conn) of
-		{ok, _Version} ->
-		    {ok, Ebotdb} = couchbeam:open_or_create_db(Conn, "ebot", []),
-		    State = #state{db=Ebotdb},
-		    {ok, State};
-		Else ->
-		    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, ?EBOT_DB_BACKEND, Else}}),
-		    Else
-	    end;
-	ebot_db_backend_riak_pb ->
-	    case riakc_pb_socket:start_link(Hostname, Port) of
-		{ok, Pid} ->
-		    State = #state{db=Pid},
-		    {ok, State};
-		Else ->
-		    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, ?EBOT_DB_BACKEND, Else}}),
-		    Else
-	    end;
-	_Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
-	    {error, unsupported_backend}
+    case ebot_db_util:open_or_create_db() of
+	{ok, DB} ->
+	    State = #state{db=DB},
+	    {ok, State};
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, Else}}),
+	    Else
     end.
 
 %%--------------------------------------------------------------------

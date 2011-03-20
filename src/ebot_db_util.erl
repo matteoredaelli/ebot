@@ -31,6 +31,7 @@
 	 create_url/2,
 	 is_html_doc/1,
 	 open_url/2,
+	 open_or_create_db/0,
 	 open_or_create_url/2,
 	 update_url/3,
 	 url_status/3
@@ -74,6 +75,30 @@ open_url(Db, Id) when is_list(Id) ->
     open_url(Db, list_to_binary(Id));
 open_url(Db, Id) ->
     ?EBOT_DB_BACKEND:open_url(Db, Id).
+
+open_or_create_db() ->
+    {ok, Hostname} = ebot_util:get_env(db_hostname),
+    {ok, Port} = ebot_util:get_env(db_port),
+    case ?EBOT_DB_BACKEND of
+	ebot_db_backend_couchdb ->
+	    application:start(ibrowse),
+	    application:start(couchbeam),
+	    Prefix = "",
+	    Options = [],
+	    Conn = couchbeam:server_connection(Hostname, Port, Prefix, Options),
+	    case couchbeam:server_info(Conn) of
+		{ok, _Version} ->
+		    couchbeam:open_or_create_db(Conn, "ebot", []);
+		Else ->
+		    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, ?EBOT_DB_BACKEND, Else}}),
+		    Else
+	    end;
+	ebot_db_backend_riak_pb ->
+	    riakc_pb_socket:start_link(Hostname, Port);
+	_Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
+	    {error, unsupported_backend}
+    end.
 
 open_or_create_url(Db, Url) ->
     case Doc = open_url(Db, Url) of
