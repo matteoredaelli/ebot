@@ -27,11 +27,13 @@
 
 -include("ebot.hrl").
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 %% API
 -export([
 	 fetch_url_with_only_html_body/1,
-	 fetch_url_get/1,
-	 fetch_url_head/1,
 	 fetch_url_links/1
 	]).
 
@@ -42,24 +44,18 @@
 %%--------------------------------------------------------------------
 
 fetch_url_with_only_html_body(Url) ->
-    Result = fetch_url_head(Url),
+    Result = fetch_url(Url, head),
     case Result of 
 	{error, Reason} ->
 	    {error, Reason};   
 	{ok, {_Status, Headers, _}} ->
 	    case is_text_html_mime_url(Headers) of
 		true ->
-		    fetch_url_get(Url);
+		    fetch_url(Url, get);
 		false ->
 		    Result
 	    end
     end.
-
-fetch_url_get(URL) ->
-    fetch_url(URL, get).
-
-fetch_url_head(URL) ->
-    fetch_url(URL, head).
 
 fetch_url_links(URL) ->
     case fetch_url(URL, get) of
@@ -106,7 +102,6 @@ fetch_url(Url, Command) ->
 	    {error, Reason}
     end.
 
-
 is_text_html_mime_url(Headers) ->
     Contenttype = proplists:get_value("content-type", Headers),
     case Contenttype of
@@ -126,8 +121,7 @@ is_text_html_mime_url(Headers) ->
 
 -ifdef(TEST).
 
-ebot_web_test() ->
-    Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
+ebot_web_util_test() ->
     Url =  <<"http://www.redaelli.org/matteo/ebot_test/">>,
 
     H1 = [{"connection","Keep-Alive"},
@@ -142,6 +136,19 @@ ebot_web_test() ->
     ?assertEqual(false, is_text_html_mime_url(H2)),
 
     {ok,{_Status, Headers, _Body}} = fetch_url_with_only_html_body(Url),
-    ?assertEqual(true, is_text_html_mime_url(Headers)).
+    ?assertEqual(true, is_text_html_mime_url(Headers)),
+
+    ExpectedUrlLinks = [<<"http://code.google.com/p/oreste/">>,
+			     <<"http://github.com/matteoredaelli/ebot">>,
+			     <<"http://www.redaelli.org/">>,
+			     <<"http://www.redaelli.org/matteo">>,
+			     <<"http://www.redaelli.org/matteo/ebot_test/dir1">>
+		       ],
+    UrlLinks = fetch_url_links(Url),
+    ?assertEqual( {ok, ExpectedUrlLinks}, UrlLinks),
+    ExpectedExternalLinks = [<<"http://code.google.com/p/oreste/">>,
+			     <<"http://github.com/matteoredaelli/ebot">>],
+    ?assertEqual(ExpectedExternalLinks,  
+		 ebot_url_util:filter_external_links(Url, ExpectedUrlLinks)).
 
 -endif.
