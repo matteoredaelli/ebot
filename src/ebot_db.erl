@@ -52,15 +52,17 @@
 
 %% API
 -export([
-	 list_urls/0,
+	 list_docs/0,
 	 start_link/0,
 	 statistics/0,
 	 create_url/1,
-	 delete_url/1,
-	 empty_db_urls/0,
-	 open_url/1,
+	 delete_doc/1,
+	 delete_all_docs/0,
+	 open_doc/1,
+	 open_or_create_crawler/1,
+	 open_or_create_doc/2,
 	 open_or_create_url/1,
-	 update_url/2,
+	 update_doc/2,
 	 url_status/2
 	]).
 
@@ -79,6 +81,10 @@
 -include("ebot.hrl").
 -include("deps/couchbeam/include/couchbeam.hrl").
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 %%====================================================================
 %% API
 %%====================================================================
@@ -88,24 +94,28 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-create_url(Url) ->
-    gen_server:call(?MODULE, {create_url, Url}).
-delete_url(Url) ->
-    gen_server:call(?MODULE, {delete_url, Url}).
-empty_db_urls() ->
-    gen_server:cast(?MODULE, {empty_db_urls}).
-list_urls() ->
-    gen_server:call(?MODULE, {list_urls}).
-open_url(ID) ->
-    gen_server:call(?MODULE, {open_url, ID}).
-open_or_create_url(Url) ->
-    gen_server:call(?MODULE, {open_or_create_url, Url}).
+create_url(ID) ->
+    gen_server:call(?MODULE, {create_doc, ID, url}).
+delete_doc(ID) ->
+    gen_server:call(?MODULE, {delete_doc, ID}).
+delete_all_docs() ->
+    gen_server:cast(?MODULE, {delete_all_docs}).
+list_docs() ->
+    gen_server:call(?MODULE, {list_docs}).
+open_doc(ID) ->
+    gen_server:call(?MODULE, {open_doc, ID}).
+open_or_create_crawler(ID) ->
+    gen_server:call(?MODULE, {open_or_create_doc, ID, crawler}).
+open_or_create_doc(ID, DocType) ->
+    gen_server:call(?MODULE, {open_or_create_doc, ID, DocType}).
+open_or_create_url(ID) ->
+    gen_server:call(?MODULE, {open_or_create_doc, ID, url}).
 statistics() ->
     gen_server:call(?MODULE, {statistics}).
-update_url(Url, Options) ->
-    gen_server:call(?MODULE, {update_url, Url, Options}).
-url_status(Url, Days) ->
-    gen_server:call(?MODULE, {url_status, Url, Days}).
+update_doc(ID, Options) ->
+    gen_server:call(?MODULE, {update_doc, ID, Options}).
+url_status(ID, Days) ->
+    gen_server:call(?MODULE, {url_status, ID, Days}).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -122,9 +132,9 @@ init([]) ->
 	{ok, DB} ->
 	    State = #state{db=DB},
 	    {ok, State};
-	Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {init, cannot_connect_to_db, Else}}),
-	    Else
+	_Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
+	    {error, unsupported_backend}
     end.
 
 %%--------------------------------------------------------------------
@@ -136,31 +146,31 @@ init([]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
-handle_call({create_url, Url}, _From, State) ->
-    Reply = ebot_db_util:create_url(State#state.db, Url),
+handle_call({create_doc, ID, DocType}, _From, State) ->
+    Reply = ebot_db_util:create_doc(State#state.db, ID, DocType),
     {reply, Reply, State};
-handle_call({delete_url, Url}, _From, State) ->
-    Reply =  ?EBOT_DB_BACKEND:delete_url(State#state.db, Url),
+handle_call({delete_doc, ID}, _From, State) ->
+    Reply = ebot_db_util:delete_doc(State#state.db, ID),
     {reply, Reply, State};
-handle_call({list_urls}, _From, State) ->
-    Reply =  ?EBOT_DB_BACKEND:list_urls(State#state.db),
+handle_call({list_docs}, _From, State) ->
+    Reply =  ebot_db_util:list_docs(State#state.db),
     {reply, Reply, State};
-handle_call({open_url, ID}, _From, State) ->
-    Reply = ebot_db_util:open_url(State#state.db, ID),
+handle_call({open_doc, ID}, _From, State) ->
+    Reply = ebot_db_util:open_doc(State#state.db, ID),
     {reply, Reply, State};
-handle_call({open_or_create_url, Url}, _From, State) ->
-    Reply = ebot_db_util:open_or_create_url(State#state.db, Url),
+handle_call({open_or_create_doc, ID, DocType}, _From, State) ->
+    Reply = ebot_db_util:open_or_create_doc(State#state.db, ID, DocType),
     {reply, Reply, State};		 
-handle_call({url_status, Url, Days}, _From, State) ->
-    Reply = ebot_db_util:url_status(State#state.db, Url, Days),
+handle_call({url_status, ID, Days}, _From, State) ->
+    Reply = ebot_db_doc_url:url_status(State#state.db, ID, Days),
     {reply, Reply, State};
 
 handle_call({statistics}, _From, State) ->
     Reply = ?EBOT_DB_BACKEND:statistics(State#state.db),
     {reply, Reply, State};
 
-handle_call({update_url, Url, Options}, _From, State) ->
-    Reply = ebot_db_util:update_url(State#state.db, Url, Options),
+handle_call({update_doc, ID, Options}, _From, State) ->
+    Reply = ebot_db_util:update_doc(State#state.db, ID, Options),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
@@ -173,8 +183,8 @@ handle_call(_Request, _From, State) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
-handle_cast({empty_db_urls}, State) ->
-    ?EBOT_DB_BACKEND:empty_db_urls(State#state.db),
+handle_cast({delete_all_docs}, State) ->
+    ?EBOT_DB_BACKEND:delete_all_docs(State#state.db),
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -213,74 +223,10 @@ code_change(_OldVsn, State, _Extra) ->
 %% EUNIT TESTS
 %%====================================================================
 
--include_lib("eunit/include/eunit.hrl").
 
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 ebot_db_test() ->
-    Url = <<"http://www.redaelli.org/matteo/ebot_test/">>,
-    Key = <<"ebot_referrals_count">>,
-    ebot_db:open_or_create_url(Url),
-    Doc = ebot_db:open_url(Url),
-    ?assertEqual({ok,0}, dict:find(Key, Doc)),
-    ebot_db:update_url(Url, [{update_field_key_value, Key, 1}]),
-    Doc2 = ebot_db:open_url(Url),
-    ?assertEqual({ok,1}, dict:find(Key, Doc2)),
-    ebot_db:update_url(Url, [
-			     {update_field_key_value, <<"ebot_head_error">>, <<"">> },
-			     {update_field_key_value, <<"content_length">>, <<"12345">> },
-			     {update_field_timestamp,<<"ebot_head_visited">>},
-			     {update_field_counter,<<"ebot_visits_count">>},
-			     {update_field_key_value,<<"ebot_errors_count">>,1},
-			     {update_field_key_value, <<"content-type">>, <<"text/html; charset=UTF-8">>}
-			    ]),
-    Doc3 = ebot_db:open_url(Url),
-    ?assertEqual({ok,<<"">>}, dict:find(<<"ebot_head_error">>, Doc3)),
-    ?assertEqual({ok,<<"12345">>}, dict:find(<<"content_length">>, Doc3)),
-    ?assertEqual({ok,1}, dict:find(<<"ebot_errors_count">>, Doc3)),
-    ebot_db:update_url(Url, [
-			     {head,
-			      {{"HTTP/1.1",200,"OK"},
-			       [{"cache-control",
-				 "private, max-age=0, must-revalidate"},
-				{"connection","keep-alive"},
-				{"date","Wed, 22 Sep 2010 19:12:39 GMT"},
-				{"via","1.1 varnish"},
-				{"age","0"},
-				{"etag",
-				 "\"9de4ba5a2cf11a66a3543fd2c07ae683\""},
-				{"server","Apache"},
-				{"vary","Accept-Encoding"},
-				{"content-length","11521"},
-				{"content-type","text/html; charset=utf-8"},
-				{"x-powered-by",
-                                   "Phusion Passenger (mod_rails/mod_rack) 2.2.11"},
-				{"x-runtime","20"},
-				{"set-cookie",
-				 "_gitorious_sess=8b512c1b5212a4b330ee2e8a1673153e; domain=.gitorious.org; path=/; expires=Wed, 13 Oct 2010 19:12:39 GMT; HttpOnly"},
-				{"status","200"},
-				{"x-varnish","942297164"}
-			       ],
-			       empty
-			      },
-			      [<<"content-length">>,<<"content-type">>,
-			       <<"server">>,<<"x-powered-by">>, <<"UNKNOWNHEADER">>
-			      ]
-			     }
-			    ]
-		      ),
-    
-    
-%   What happens if you update a not existing url?
-    ebot_db:update_url(<<"http://code.google.com/">>,
-		       [
-			{update_field_counter,<<"ebot_errors_count">>},
-			{update_field_key_value,<<"ebot_head_error">>, <<"timeout">>}
-		       ]
-		      ),
-    Doc4 = ebot_db:open_url(<<"http://code.google.com/">>),
-    ?assertEqual({ok,<<"timeout">>}, dict:find(<<"ebot_head_error">>, Doc4)).
-    
-%    ebot_db:delete_url(Url).
-%    ?assertEqual(not_found,  ebot_db:open_url(Url)).
+    ?assertEqual(true, true).
 -endif.

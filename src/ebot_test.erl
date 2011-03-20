@@ -60,7 +60,7 @@ oss() ->
     test_workers_with_urls(Urls).
 
 test_workers_with_urls(Urls) ->
-    ebot_db:empty_db_urls(),
+    ebot_db:delete_all_docs(),
     timer:sleep(5),
     ebot_crawler:start_workers(),
     lists:foreach( fun ebot_crawler:add_new_url/1, Urls).

@@ -217,7 +217,7 @@ analyze_url(Url,{error, Reason}) ->
     %% TODO: instead of only Url, it would be nice to send {Url, Reason}
     %% like <<"https://github.com/login/,https_through_proxy_is_not_currently_supported">>
     ebot_mq:send_url_refused({Url,Reason}),
-    ebot_db:update_url(Url, Options),
+    ebot_db:update_doc(Url, Options),
     {error, Reason};
 
 analyze_url(Url,{ok, {Status, Headers, Body}}) ->
@@ -231,7 +231,7 @@ analyze_url_head(Url, Result = {_Status, _Headers, empty}) ->
 	       {update_field_counter, <<"ebot_visits_count">>},
 	       {update_field_key_value, <<"ebot_errors_count">>, 0}
 	      ],
-    ebot_db:update_url(Url, Options).
+    ebot_db:update_doc(Url, Options).
 
 analyze_url_body(Url, {_Status, _Headers, empty}) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_url_body, Url, empty_body}});
@@ -284,7 +284,7 @@ analyze_url_body_links(Url, Links) ->
 		      ebot_url_util:is_same_domain(Url, U)) of
 		  true ->	    
 		      Options = [{referral, Url}],
-		      ebot_db:update_url(U, Options);
+		      ebot_db:update_doc(U, Options);
 		  false ->
 		      ok
 	      end
@@ -294,7 +294,7 @@ analyze_url_body_links(Url, Links) ->
     Options = [{update_field_timestamp, <<"ebot_body_visited">>},
 	       {update_field_key_value, <<"ebot_links_count">>, LinksCount}
 	      ],
-    ebot_db:update_url(Url, Options),
+    ebot_db:update_doc(Url, Options),
     ok.
 
 analyze_url_body_plugins(Url, Tokens) ->
@@ -309,7 +309,7 @@ analyze_url_body_plugins(Url, Tokens) ->
 analyze_url_body_plugin(Url, Tokens, Module, Function) ->  
     Options = Module:Function(Url, Tokens),
     error_logger:info_report({?MODULE, ?LINE, {analyze_url_body_plugin, Url, Module, Function, Options}}),
-    ebot_db:update_url(Url, Options).
+    ebot_db:update_doc(Url, Options).
 
 get_env_normalize_url(Url, [{RE,Options}|L]) ->
     case re:run(Url, RE, [{capture, none},caseless]) of

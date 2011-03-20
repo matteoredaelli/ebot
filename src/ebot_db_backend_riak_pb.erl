@@ -28,11 +28,11 @@
 
 %% API
 -export([
-	 delete_url/2,
-	 empty_db_urls/1,
-	 list_urls/1,
-	 open_url/2,
-	 save_url_doc/3,
+	 delete_doc/2,
+	 delete_all_docs/1,
+	 list_docs/1,
+	 open_doc/2,
+	 save_doc/3,
 	 statistics/1
 	]).
 
@@ -44,24 +44,35 @@
 %% Description:
 %%--------------------------------------------------------------------
 
-delete_url(Db, Url) ->
+delete_doc(Db, Url) ->
     delete_key(Db, ?BUCKET_URLS, Url).
 
-empty_db_urls(Db) ->
+delete_all_docs(Db) ->
     empty_db_bucket(Db, ?BUCKET_URLS).
 
-list_urls(Db) ->
+list_docs(Db) ->
     list_keys(Db, ?BUCKET_URLS).
 
-open_url(Db, Id) ->
-    open_doc(Db, ?BUCKET_URLS, Id).
+open_doc(Db, Id) ->
+    case riakc_pb_socket:get(Db, ?BUCKET_URLS, Id) of
+	{error, notfound} ->
+	    {error, not_found};
+	{error, Reason} ->
+	    error_logger:error_report({?MODULE, ?LINE, {open_doc, error, Reason}}),
+	    {error, Reason};
+	{ok, Object} -> 
+	    {ok, binary_to_term(riakc_obj:get_value(Object))};
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {open_doc, unexpected_value, Else}}),
+	    Else
+    end.
 
-save_url_doc(Db, Url, Doc) ->
+save_doc(Db, Url, Doc) ->
     save_doc(Db, ?BUCKET_URLS, Url, Doc).
 
 statistics(Db) ->
     %% TODO: disk_size
-    {ok, Keys} = list_urls(Db),
+    {ok, Keys} = list_docs(Db),
     DocCount = length(Keys),
     [ {<<"disk_size">>, 0}, 
       {<<"doc_count">>,DocCount}
@@ -87,20 +98,6 @@ empty_db_bucket(Db, Bucket) ->
 list_keys(Db, Bucket) ->
     riakc_pb_socket:list_keys(Db, Bucket).
 
-open_doc(Db, Bucket, Id) ->
-    case riakc_pb_socket:get(Db, Bucket, Id) of
-	{error, notfound} ->
-	    not_found;
-	{error, Reason} ->
-	    error_logger:error_report({?MODULE, ?LINE, {open_doc, error, Reason}}),
-	    Reason;
-	{ok, Object} -> 
-	    binary_to_term(riakc_obj:get_value(Object));
-	Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {open_doc, unexpected_value, Else}}),
-	    Else
-    end.
-
 save_doc(Db, Bucket, Key, Doc) ->
     NewDoc = term_to_binary(Doc, [compressed]),
     case riakc_pb_socket:get(Db, Bucket, Key) of
@@ -115,7 +112,7 @@ save_doc(Db, Bucket, Key, Doc) ->
 	Else ->
 	    error_logger:error_report({?MODULE, ?LINE, {save_doc, Key, error, Else}})
     end,
-    Doc.
+    {ok, Doc}.
 
 
 

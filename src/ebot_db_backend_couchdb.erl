@@ -26,11 +26,11 @@
 
 %% API
 -export([
-	 delete_url/2,
-	 empty_db_urls/1,
-	 list_urls/1,
-	 open_url/2,
-	 save_url_doc/3,
+	 delete_doc/2,
+	 delete_all_docs/1,
+	 list_docs/1,
+	 open_doc/2,
+	 save_doc/3,
 	 statistics/1
 	]).
 
@@ -42,7 +42,7 @@
 %% Description:
 %%--------------------------------------------------------------------
 
-delete_url(Db, Url) ->
+delete_doc(Db, Url) ->
     case couchbeam:open_doc(Db, Url) of
 	{error, _} ->
 	    ok;
@@ -50,16 +50,21 @@ delete_url(Db, Url) ->
 	    couchbeam:delete_doc(Db, Doc)
     end.
 
-empty_db_urls(_Db) ->
+delete_all_docs(_Db) ->
     {not_yet_implemented_for, ?MODULE}.
 
-list_urls(_Db) ->
+list_docs(_Db) ->
     {not_yet_implemented_for, ?MODULE}.
 
-open_url(Db, Url) ->
-    open_doc(Db, Url).
+open_doc(Db, Id) ->
+    case couchbeam:open_doc(Db, Id) of
+	{ok, {Doc}} ->
+	    {ok, dict:from_list(Doc)};
+	{error, Reason} ->
+	    {error, Reason}
+    end.
 
-save_url_doc(Db, Url, Doc) ->
+save_doc(Db, Url, Doc) ->
     case dict:find(<<"_id">>, Doc) of
 	error ->
 	    NewDoc =  dict:store(<<"_id">>, Url, Doc);
@@ -78,16 +83,8 @@ statistics(Db) ->
 %% Internal Functions
 %%====================================================================
 
-open_doc(Db, Id) ->
-    case couchbeam:open_doc(Db, Id) of
-	{ok, {Doc}} ->
-	    dict:from_list(Doc);
-	{error, Reason} ->
-	    Reason
-    end.
-
 save_doc(Db, Doc) ->
     {ok, {Doc1}} = couchbeam:save_doc(Db, {dict:to_list(Doc)}),
-    dict:from_list(Doc1).
+    {ok, dict:from_list(Doc1)}.
 
 
