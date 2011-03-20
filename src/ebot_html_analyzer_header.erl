@@ -56,7 +56,7 @@ analyze_html_tag_data(Url, Tokens, TagName) ->
 	List ->
 	     Values = ebot_util:bjoin(List)
     end,	
-    [{update_field_key_value, TagName, Values}].
+    [{update_value, TagName, Values}].
 
 analyze_html_meta_attributes(Url, Tokens) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_html_tag_attributes, Url}}),
@@ -64,7 +64,7 @@ analyze_html_meta_attributes(Url, Tokens) ->
     analyze_meta_attributes(Url, Attributes).
 
 analyze_meta_attributes(_Url, []) ->
-    [{update_field_key_value, <<"keywords">>, <<>>},{update_field_key_value, <<"description">>, <<>>}];
+    [{update_value, <<"keywords">>, <<>>},{update_value, <<"description">>, <<>>}];
 analyze_meta_attributes(_Url, Attributes) ->
     lists:foldl(
       fun(Attribute, Results) ->
@@ -75,10 +75,10 @@ analyze_meta_attributes(_Url, Attributes) ->
 
 analyze_meta_attribute(_Url, [{_Name,Name},{<<"content">>,Content}]) ->
     %% TODO: Name should be normalized (riak maybe doesn't like some characters like -, upcase chars,.. ok for couchdb)
-    {update_field_key_value, Name, Content};
+    {update_value, Name, Content};
 analyze_meta_attribute(Url, List) ->
     error_logger:info_report({?MODULE, ?LINE, {analyze_meta_attribute, Url, unexpected_list, List}}),
-    {update_field_key_value, <<"headermeta">>, <<"invalid_meta-attribute">>}. 
+    {update_value, <<"headermeta">>, <<"invalid_meta-attribute">>}. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% DESCRITION
@@ -104,7 +104,9 @@ analyze_meta_attribute(Url, List) ->
 %% EUNIT TESTS
 %%====================================================================
 
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+-endif.
 
 -ifdef(TEST).
 
@@ -123,13 +125,13 @@ ebot_html_analyzer_header_test() ->
 		       {<<"content">>,
 			<<"text/html; charset=utf-8">>}]
 		     ],
-    ?assertEqual([{update_field_key_value,<<"headermeta">>,
-		   <<"invalid_meta-attribute">>},
-		  {update_field_key_value,<<"keywords">>,
+    ?assertEqual([{update_value,<<"Content-Type">>,
+                    <<"text/html; charset=utf-8">>},
+		  {update_value,<<"keywords">>,
 		   <<"redaelli,carate brianza,opensource,linux,italy">>},
-		  {update_field_key_value,<<"description">>,
+		  {update_value,<<"description">>,
 		   <<"Website dei Fratelli Redaelli">>},
-		  {update_field_key_value,
+		  {update_value,
 		   <<"google-site-verification">>,
 		   <<"SdYRvDUubCbqDXBUbur7qnC1Gh9cmVC3GUisrpqGBT0">>}],
 		 analyze_meta_attributes(Url, MetaAttributes)).

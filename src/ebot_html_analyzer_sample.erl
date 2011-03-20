@@ -39,9 +39,9 @@ analyze_url_body(_Url, _Tokens) ->
     %% add here you logic
     %% 
     [
-     {update_field_key_value, <<"sample_key">>, 1}
-     %% {update_field_timestamp,<<"ebot_timestamp_key">>},
-     %% {update_field_counter, <<"ebot_counter_key">>},
+     {update_value, <<"sample_key">>, 1}
+     %% {update_timestamp,<<"ebot_timestamp_key">>},
+     %% {update_counter, <<"ebot_counter_key">>},
     ].
 
 %%====================================================================

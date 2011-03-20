@@ -210,8 +210,8 @@ run(Depth) ->
 
 analyze_url(Url,{error, Reason}) ->
     error_logger:error_report({?MODULE, ?LINE, {analyze_url, Url, skipping_url, Reason}}),
-    Options = [{update_field_counter, <<"ebot_errors_count">>},
-	       {update_field_key_value, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason))}
+    Options = [{update_counter, <<"ebot_errors_count">>},
+	       {update_value, <<"ebot_head_error">>, list_to_binary(atom_to_list(Reason))}
 	      ],
 
     %% TODO: instead of only Url, it would be nice to send {Url, Reason}
@@ -227,9 +227,9 @@ analyze_url(Url,{ok, {Status, Headers, Body}}) ->
 analyze_url_head(Url, Result = {_Status, _Headers, empty}) ->
     {ok, H} = ebot_util:get_env(tobe_saved_headers),
     Options = [{head, Result, H}, 
-	       {update_field_timestamp,<<"ebot_head_visited">>},
-	       {update_field_counter, <<"ebot_visits_count">>},
-	       {update_field_key_value, <<"ebot_errors_count">>, 0}
+	       {update_timestamp,<<"ebot_head_visited">>},
+	       {update_counter, <<"ebot_visits_count">>},
+	       {update_value, <<"ebot_errors_count">>, 0}
 	      ],
     ebot_db:update_doc(Url, Options).
 
@@ -291,8 +291,8 @@ analyze_url_body_links(Url, Links) ->
       end,
       NotVisitedLinks),
     %% UPDATE ebot-body-visited
-    Options = [{update_field_timestamp, <<"ebot_body_visited">>},
-	       {update_field_key_value, <<"ebot_links_count">>, LinksCount}
+    Options = [{update_timestamp, <<"ebot_body_visited">>},
+	       {update_value, <<"ebot_links_count">>, LinksCount}
 	      ],
     ebot_db:update_doc(Url, Options),
     ok.

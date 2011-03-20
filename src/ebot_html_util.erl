@@ -27,7 +27,9 @@
 %% API
 -export([
 	 get_links/2,
+	 get_links_from_tokens/2,
 	 get_images/2,
+	 get_images_from_tokens/2,
 	 get_start_tags_attributes/2,
 	 get_start_tags_attributes/3,
 	 get_start_tags_data/2
@@ -37,7 +39,7 @@
 %% API
 %%====================================================================
 %%--------------------------------------------------------------------
-%% Function: get_links 
+%% Function: get_links_from_tokens 
 %% Description:
 %%--------------------------------------------------------------------
 
@@ -55,10 +57,14 @@
 %%             {<<"alt">>,<<"Icon">>}],
 %%            true}]
 
-get_images(Tokens, ParentUrl) when is_binary(ParentUrl) ->
-    Images = get_images(Tokens, binary_to_list(ParentUrl)),
+get_images(Html, ParentUrl) ->
+    Tokens = mochiweb_html:tokens(Html),
+    get_images_from_tokens(Tokens, ParentUrl).
+
+get_images_from_tokens(Tokens, ParentUrl) when is_binary(ParentUrl) ->
+    Images = get_images_from_tokens(Tokens, binary_to_list(ParentUrl)),
     lists:map( fun list_to_binary/1, Images);
-get_images(Tokens, ParentUrl) ->
+get_images_from_tokens(Tokens, ParentUrl) ->
     Urls = lists:flatten(get_start_tags_attributes(Tokens, <<"img">>, <<"src">>)),
     List = lists:foldl(
 	     fun(Url, Links) -> 
@@ -78,10 +84,14 @@ get_images(Tokens, ParentUrl) ->
 	    ),
     ebot_util:remove_duplicates(List).
 
-get_links(Tokens, ParentUrl) when is_binary(ParentUrl) ->
-    Links = get_links(Tokens, binary_to_list(ParentUrl)),
+get_links(Html, ParentUrl) ->
+    Tokens = mochiweb_html:tokens(Html),
+    get_links_from_tokens(Tokens, ParentUrl).
+
+get_links_from_tokens(Tokens, ParentUrl) when is_binary(ParentUrl) ->
+    Links = get_links_from_tokens(Tokens, binary_to_list(ParentUrl)),
     lists:map( fun list_to_binary/1, Links);
-get_links(Tokens, ParentUrl) ->
+get_links_from_tokens(Tokens, ParentUrl) ->
     Urls = lists:flatten(get_start_tags_attributes(Tokens, <<"a">>, <<"href">>)),
     List = lists:foldl(
 	     fun(Url, Links) -> 
@@ -217,11 +227,11 @@ ebot_html_util_test() ->
     ?assertEqual( [<<"http://www.alpinicarate.it">>,
 		   <<"http://www.redaelli.org/matteo">>,
 		   <<"http://www.vvfcarate.it/">>],
-		   ebot_html_util:get_links(Html, Url)),
+		   get_links_from_tokens(Tokens, Url)),
 
     ?assertEqual( [<<"http://upload.wikimedia.org/test.JPG">>,
 		   <<"http://www.redaelli.org/images/fratelli-redaelli.jpg">>],
-		  ebot_html_util:get_images(Html, Url)),
+		  get_images_from_tokens(Tokens, Url)),
 
     ?assertEqual( [[{<<"name">>,<<"google-site-verification">>},
 		    {<<"content">>,
@@ -236,6 +246,6 @@ ebot_html_util_test() ->
 		    {<<"content">>,
 		     <<"text/html; charset=utf-8">>}]
 		  ],
-    		  ebot_html_util:get_start_tags_attributes(Tokens, <<"meta">>)).
+    		  get_start_tags_attributes(Tokens, <<"meta">>)).
 
 -endif.

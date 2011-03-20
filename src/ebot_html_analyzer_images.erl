@@ -34,17 +34,11 @@
 %%--------------------------------------------------------------------
 
 add_images_list(Url, Tokens) ->
-    List = ebot_html_util:get_images(Tokens, Url),
+    List = ebot_html_util:get_images_from_tokens(Tokens, Url),
     %% Save Image urls to db and add them to the queue of urls to be visited
     %% lists:foreach(fun ebot_db:open_or_create_url/1, List), 
     %% lists:foreach(fun ebot_crawler:add_url/1, List), 
-    case List of
-	[] ->
-	    Values = <<"noimages">>;
-	List ->
-	    Values = ebot_util:bjoin(List)
-    end,
-    [{update_field_key_value, <<"images">>, Values}].
+    [{update_value, <<"images">>, list_to_binary(List)}].
 
 %%====================================================================
 %% Internal functions
