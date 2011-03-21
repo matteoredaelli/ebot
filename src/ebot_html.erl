@@ -240,7 +240,7 @@ analyze_url_body(Url, {_Status, _Headers, Body}) ->
     Tokens = mochiweb_html:tokens(Body),
     spawn(?MODULE, analyze_url_body_plugins, [Url, Tokens]),
     error_logger:info_report({?MODULE, ?LINE, {analyze_body_plugins, Url}}),
-    Links = ebot_html_util:get_links(Tokens, Url),
+    Links = ebot_html_util:get_links_from_token(Tokens, Url),
     analyze_url_body_links(Url, Links),
     ebot_mq:send_url_processed({Url, empty}).
 
