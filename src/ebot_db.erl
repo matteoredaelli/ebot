@@ -132,9 +132,9 @@ init([]) ->
 	{ok, DB} ->
 	    State = #state{db=DB},
 	    {ok, State};
-	_Else ->
-	    error_logger:error_report({?MODULE, ?LINE, {init, unsupported_backend, ?EBOT_DB_BACKEND}}),
-	    {error, unsupported_backend}
+	Else ->
+	    error_logger:error_report({?MODULE, ?LINE, {init, cannot_open_db, ?EBOT_DB_BACKEND, Else}}),
+	    Else
     end.
 
 %%--------------------------------------------------------------------
