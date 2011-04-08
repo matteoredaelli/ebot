@@ -1,7 +1,11 @@
 EBOT (http://www.redaelli.org/matteo-blog/projects/ebot/)
 USAGE: see the wiki homepage (http://wiki.github.com/matteoredaelli/ebot/) and ebot_test.erl for details
 LICENSE: GPL v3+, see file LICENSE
-Copyright (c) 2010 - Matteo Redaelli at libero dot it
+Copyright (c) 2010, 2011 - Matteo Redaelli at libero dot it
 
-Tested with Linux (Ubuntu and Debian) and Erlang R13B03
+Tested with Linux (Ubuntu and Debian) and Erlang R13B03 and R14A
+
+*******************************************************************************
+* DOWNLOAD "TAG" releases and not the latest sources that could be unstable...
+*******************************************************************************
 
