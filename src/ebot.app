@@ -44,8 +44,8 @@
 	 %% Remember also to set DB_BACKEND_MODULE in src/ebot.hrl
 
 	 {db_hostname, "127.0.0.1"},
-	 {db_port, 5984}, %% CouchDB
-	 %% {db_port, 8087}, %% Riak
+	 %% {db_port, 5984}, %% CouchDB
+	 {db_port, 8087}, %% Riak
 
 	 %% ---------------------------------------------------------
 	 %% MQ
